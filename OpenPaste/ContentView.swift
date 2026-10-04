@@ -96,8 +96,8 @@ struct ContentView: View {
                             : "Prova con un’altra parola."))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if pillState.isCompact {
-                ScrollView(.horizontal) {
-                    LazyHStack(spacing: 10) {
+                ScrollView(.vertical) {
+                    LazyVStack(spacing: 10) {
                         ForEach(model.displayedItems) { item in
                             ClipboardItemRow(
                                 item: item,
@@ -105,7 +105,7 @@ struct ContentView: View {
                                 onMove: { model.move(item, to: $0) },
                                 onRemoveFromHistory: { model.removeFromHistory(item) },
                                 onDelete: { model.deletePermanently(item) })
-                                .frame(width: 280)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(10)
                                 .background(.quaternary, in: RoundedRectangle(cornerRadius: 16))
                         }
@@ -126,7 +126,7 @@ struct ContentView: View {
             }
         }
         .padding(14)
-        .frame(minWidth: 640, minHeight: 180)
+        .frame(maxWidth: .infinity, minHeight: 180)
         .background(
             .regularMaterial,
             in: RoundedRectangle(
@@ -180,12 +180,12 @@ private struct ClipboardItemRow: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.title ?? item.content)
-                    .lineLimit(1)
+                    .lineLimit(5)
                     .font(.body)
 
                 if item.title != nil || item.kind == .link {
                     Text(item.content)
-                        .lineLimit(2)
+                        .lineLimit(5)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

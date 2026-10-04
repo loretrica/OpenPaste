@@ -14,17 +14,19 @@ final class PillWindowState {
 
 enum PillWindowGeometry {
     static let compactHeightThreshold: CGFloat = 320
+    static let horizontalMargin: CGFloat = 24
 
     static func frame(
         for dimensions: WindowDimensions,
         in visibleFrame: CGRect,
         bottomInset: CGFloat = 18
     ) -> CGRect {
-        let safeWidth = max(1, visibleFrame.width - 32)
+        let safeWidth = max(1, visibleFrame.width - horizontalMargin * 2)
         let safeHeight = max(1, visibleFrame.height - bottomInset)
-        let size = dimensions.clamped(to: CGSize(width: safeWidth, height: safeHeight))
+        let size = WindowDimensions(width: safeWidth, height: dimensions.height)
+            .clamped(to: CGSize(width: safeWidth, height: safeHeight))
         return CGRect(
-            x: visibleFrame.midX - size.width / 2,
+            x: visibleFrame.minX + (visibleFrame.width - size.width) / 2,
             y: visibleFrame.minY + bottomInset,
             width: size.width,
             height: size.height)
@@ -70,7 +72,12 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
-        panel.minSize = NSSize(width: 640, height: 180)
+        panel.minSize = NSSize(
+            width: initialFrame.width,
+            height: min(180, initialFrame.height))
+        panel.maxSize = NSSize(
+            width: initialFrame.width,
+            height: max(initialFrame.height, NSScreen.main?.visibleFrame.height ?? initialFrame.height))
         panel.delegate = self
         panel.contentView = NSHostingView(
             rootView: ContentView(
@@ -110,11 +117,14 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
         let targetFrame = PillWindowGeometry.frame(
             for: preferencesStore.preferences.windowDimensions,
             in: visibleFrame)
+        let availableWidth = max(
+            1,
+            visibleFrame.width - PillWindowGeometry.horizontalMargin * 2)
         panel.minSize = NSSize(
-            width: min(640, max(1, visibleFrame.width - 32)),
+            width: availableWidth,
             height: min(180, max(1, visibleFrame.height - 18)))
         panel.maxSize = NSSize(
-            width: max(1, visibleFrame.width - 32),
+            width: availableWidth,
             height: max(1, visibleFrame.height - 18))
 
         panel.setFrame(targetFrame.offsetBy(dx: 0, dy: -28), display: false)

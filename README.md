@@ -4,7 +4,7 @@
 
 ## Stato
 
-OpenPaste acquisisce automaticamente testo e link copiati mentre l’app è in esecuzione, anche se la mega pill è chiusa, e li salva nel database locale. La pillola flottante si apre all’avvio o con ⇧⌘V, compare dal basso sul display attivo e si chiude con Escape o clic esterno. Riducendone l’altezza passa automaticamente alla vista compatta.
+OpenPaste acquisisce automaticamente testo e link copiati mentre l’app è in esecuzione, anche se la mega pill è chiusa, e li salva nel database locale. La pillola flottante si apre all’avvio o con ⇧⌘V, compare dal basso sul display attivo, occupa quasi tutta la larghezza con margini laterali e si chiude con Escape o clic esterno. Gli elementi sono disposti in colonna e le anteprime di testo mostrano più righe. Riducendone l’altezza passa automaticamente alla vista compatta.
 
 ## Funzioni disponibili
 
