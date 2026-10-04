@@ -40,6 +40,10 @@ L’App Sandbox è disattivata nel target, in linea con la distribuzione diretta
 
 Il target test OpenPasteTests include test per deduplicazione, retention, raccolte, ricerca reattiva, concorrenza e ricerca su 100.000 elementi.
 
+## Documentazione
+
+- [Docs/PRODUCT_SPEC.md](Docs/PRODUCT_SPEC.md) — requisiti, direzione UX, stato attuale, priorità, criteri di accettazione e schermate di riferimento anonimizzate.
+
 ## Struttura essenziale
 
 - OpenPaste/Database/ — migrazioni SQLite e repository.

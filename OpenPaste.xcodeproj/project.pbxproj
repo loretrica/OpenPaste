@@ -33,6 +33,11 @@
 		3BB9CA323072949D001A134B /* OpenPasteUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = OpenPasteUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3BB9CA4330729693001A134B /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
 		3BB9CA63307298D7001A134B /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+		3BB9CB463072D3DE001A134B /* 01-general.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "01-general.jpg"; sourceTree = "<group>"; };
+		3BB9CB473072D3DE001A134B /* 02-intelligence.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "02-intelligence.jpg"; sourceTree = "<group>"; };
+		3BB9CB483072D3DE001A134B /* 03-privacy.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "03-privacy.jpg"; sourceTree = "<group>"; };
+		3BB9CB493072D3DE001A134B /* 04-shortcuts.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "04-shortcuts.jpg"; sourceTree = "<group>"; };
+		3BB9CB4B3072D3DE001A134B /* PRODUCT_SPEC.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PRODUCT_SPEC.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -76,6 +81,7 @@
 		3BB9CA123072949B001A134B = {
 			isa = PBXGroup;
 			children = (
+				3BB9CB4C3072D3DE001A134B /* Docs */,
 				3BB9CA63307298D7001A134B /* README.md */,
 				3BB9CA4330729693001A134B /* AGENTS.md */,
 				3BB9CA1D3072949B001A134B /* OpenPaste */,
@@ -93,6 +99,26 @@
 				3BB9CA323072949D001A134B /* OpenPasteUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		3BB9CB4A3072D3DE001A134B /* screenshots */ = {
+			isa = PBXGroup;
+			children = (
+				3BB9CB463072D3DE001A134B /* 01-general.jpg */,
+				3BB9CB473072D3DE001A134B /* 02-intelligence.jpg */,
+				3BB9CB483072D3DE001A134B /* 03-privacy.jpg */,
+				3BB9CB493072D3DE001A134B /* 04-shortcuts.jpg */,
+			);
+			path = screenshots;
+			sourceTree = "<group>";
+		};
+		3BB9CB4C3072D3DE001A134B /* Docs */ = {
+			isa = PBXGroup;
+			children = (
+				3BB9CB4A3072D3DE001A134B /* screenshots */,
+				3BB9CB4B3072D3DE001A134B /* PRODUCT_SPEC.md */,
+			);
+			path = Docs;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
