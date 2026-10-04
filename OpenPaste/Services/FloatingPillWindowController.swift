@@ -15,6 +15,13 @@ final class PillWindowState {
 enum PillWindowGeometry {
     static let compactHeightThreshold: CGFloat = 320
     static let horizontalMargin: CGFloat = 24
+    static let maximumCompactCardSide: CGFloat = 220
+    static let maximumFullCardSide: CGFloat = 320
+
+    static func cardSide(availableHeight: CGFloat, isCompact: Bool) -> CGFloat {
+        let maximumSide = isCompact ? maximumCompactCardSide : maximumFullCardSide
+        return max(1, min(availableHeight, maximumSide))
+    }
 
     static func frame(
         for dimensions: WindowDimensions,
@@ -45,6 +52,8 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
     private weak var previousApplication: NSRunningApplication?
     private var isDismissing = false
     private var isRepositioning = false
+    private var localClickMonitor: Any?
+    private var globalClickMonitor: Any?
 
     init(
         clipboardStore: (any ClipboardStore)?,
@@ -130,6 +139,7 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
         panel.setFrame(targetFrame.offsetBy(dx: 0, dy: -28), display: false)
         panel.alphaValue = 0
         panel.makeKeyAndOrderFront(nil)
+        installClickMonitors()
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0.2
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
@@ -141,6 +151,7 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
     func dismiss(restoreFocus: Bool) {
         guard let panel = window, panel.isVisible, !isDismissing else { return }
         isDismissing = true
+        removeClickMonitors()
         panel.orderOut(nil)
         if restoreFocus, let previousApplication, !previousApplication.isTerminated {
             previousApplication.activate(options: [.activateIgnoringOtherApps])
@@ -181,6 +192,48 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
         isRepositioning = true
         panel.setFrame(targetFrame, display: true)
         isRepositioning = false
+    }
+
+    private func removeClickMonitors() {
+        if let localClickMonitor {
+            NSEvent.removeMonitor(localClickMonitor)
+            self.localClickMonitor = nil
+        }
+        if let globalClickMonitor {
+            NSEvent.removeMonitor(globalClickMonitor)
+            self.globalClickMonitor = nil
+        }
+    }
+
+    private func installClickMonitors() {
+        guard localClickMonitor == nil, globalClickMonitor == nil else { return }
+        let mouseDownEvents: NSEvent.EventTypeMask = [
+            .leftMouseDown,
+            .rightMouseDown,
+            .otherMouseDown
+        ]
+
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: mouseDownEvents) { [weak self] event in
+            guard let self, self.isPillVisible, let panel = self.window else { return event }
+            if !panel.frame.contains(NSEvent.mouseLocation) {
+                self.dismiss(restoreFocus: false)
+            }
+            return event
+        }
+
+        globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: mouseDownEvents) { [weak self] _ in
+            let clickLocation = NSEvent.mouseLocation
+            Task { @MainActor [weak self] in
+                guard let self,
+                      self.isPillVisible,
+                      let panel = self.window,
+                      !panel.frame.contains(clickLocation)
+                else {
+                    return
+                }
+                self.dismiss(restoreFocus: false)
+            }
+        }
     }
 
     private func activeScreen() -> NSScreen? {

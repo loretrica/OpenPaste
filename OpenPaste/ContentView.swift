@@ -95,34 +95,28 @@ struct ContentView: View {
                             ? "Copia testo o un link in un’altra app per salvarlo qui."
                             : "Prova con un’altra parola."))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if pillState.isCompact {
-                ScrollView(.vertical) {
-                    LazyVStack(spacing: 10) {
-                        ForEach(model.displayedItems) { item in
-                            ClipboardItemRow(
-                                item: item,
-                                collections: model.collections,
-                                onMove: { model.move(item, to: $0) },
-                                onRemoveFromHistory: { model.removeFromHistory(item) },
-                                onDelete: { model.deletePermanently(item) })
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(10)
-                                .background(.quaternary, in: RoundedRectangle(cornerRadius: 16))
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                }
-                .scrollIndicators(.hidden)
             } else {
-                List(model.displayedItems) { item in
-                    ClipboardItemRow(
-                        item: item,
-                        collections: model.collections,
-                        onMove: { model.move(item, to: $0) },
-                        onRemoveFromHistory: { model.removeFromHistory(item) },
-                        onDelete: { model.deletePermanently(item) })
+                GeometryReader { geometry in
+                    let side = PillWindowGeometry.cardSide(
+                        availableHeight: geometry.size.height,
+                        isCompact: pillState.isCompact)
+                    ScrollView(.horizontal) {
+                        LazyHStack(alignment: .center, spacing: 12) {
+                            ForEach(model.displayedItems) { item in
+                                ClipboardItemCard(
+                                    item: item,
+                                    collections: model.collections,
+                                    previewLineLimit: pillState.isCompact ? 5 : 12,
+                                    onMove: { model.move(item, to: $0) },
+                                    onRemoveFromHistory: { model.removeFromHistory(item) },
+                                    onDelete: { model.deletePermanently(item) })
+                                    .frame(width: side, height: side)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                    }
+                    .scrollIndicators(.hidden)
                 }
-                .listStyle(.inset)
             }
         }
         .padding(14)
@@ -162,6 +156,78 @@ struct ContentView: View {
             } message: {
                 Text("Gli elementi non presenti nella cronologia verranno eliminati definitivamente.")
             }
+    }
+}
+
+private struct ClipboardItemCard: View {
+    let item: ClipboardItem
+    let collections: [ClipboardCollection]
+    let previewLineLimit: Int
+    let onMove: (Int64?) -> Void
+    let onRemoveFromHistory: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: item.kind == .link ? "link" : "text.alignleft")
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 4)
+                Text(item.lastCopiedAt, style: .time)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title ?? item.content)
+                    .font(.body)
+                    .lineLimit(previewLineLimit)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if item.title != nil || item.kind == .link {
+                    Text(item.content)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(previewLineLimit)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                if let source = item.sourceAppBundleID {
+                    Text(source)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .contextMenu {
+            if !collections.isEmpty {
+                Menu("Assegna a raccolta") {
+                    ForEach(collections) { collection in
+                        if let id = collection.id {
+                            Button(collection.name) { onMove(id) }
+                        }
+                    }
+                }
+                if item.collectionID != nil {
+                    Button("Rimuovi dalla raccolta") { onMove(nil) }
+                }
+            }
+            if item.isInHistory {
+                Button("Rimuovi dalla cronologia", systemImage: "clock.badge.xmark") {
+                    onRemoveFromHistory()
+                }
+            }
+            Button("Elimina definitivamente", systemImage: "trash", role: .destructive) {
+                onDelete()
+            }
+        }
     }
 }
 

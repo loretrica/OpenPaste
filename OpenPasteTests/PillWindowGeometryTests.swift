@@ -30,6 +30,15 @@ struct PillWindowGeometryTests {
     }
 
     @Test
+    func compactCardsStaySquareAndFitAvailableHeight() {
+        #expect(PillWindowGeometry.cardSide(availableHeight: 180, isCompact: true) == 180)
+        #expect(PillWindowGeometry.cardSide(availableHeight: 300, isCompact: true) == 220)
+        #expect(PillWindowGeometry.cardSide(availableHeight: 300, isCompact: false) == 300)
+        #expect(PillWindowGeometry.cardSide(availableHeight: 500, isCompact: false) == 320)
+        #expect(PillWindowGeometry.cardSide(availableHeight: 0, isCompact: false) == 1)
+    }
+
+    @Test
     func compactModeChangesAutomaticallyAtHeightThreshold() {
         #expect(PillWindowGeometry.isCompact(height: 320))
         #expect(PillWindowGeometry.isCompact(height: 280))
