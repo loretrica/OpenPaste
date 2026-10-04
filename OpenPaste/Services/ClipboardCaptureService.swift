@@ -22,7 +22,7 @@ enum CapturePauseDuration: Sendable {
 final class ClipboardCaptureService {
     static let shared = ClipboardCaptureService()
 
-    private let monitor = ClipboardMonitor()
+    private let monitor: ClipboardMonitor
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "OpenPaste",
         category: "ClipboardCapture")
@@ -30,9 +30,17 @@ final class ClipboardCaptureService {
     private var preferencesStore: (any PreferencesStore)?
     private var pruningTask: Task<Void, Never>?
     private var pauseExpirationTask: Task<Void, Never>?
+    private var recordTasks: [UUID: Task<Void, Never>] = [:]
     private var isStarted = false
 
-    private init() {}
+    init(monitor: ClipboardMonitor = ClipboardMonitor()) {
+        self.monitor = monitor
+    }
+
+    deinit {
+        pruningTask?.cancel()
+        pauseExpirationTask?.cancel()
+    }
 
     func start(
         store: any ClipboardStore,
@@ -49,11 +57,10 @@ final class ClipboardCaptureService {
 
     func pause(for duration: CapturePauseDuration) {
         guard let preferencesStore else { return }
-        var preferences = preferencesStore.preferences
-        preferences.capturePauseState = duration.state()
-        preferencesStore.save(preferences)
+        let pauseState = duration.state()
+        preferencesStore.update { $0.capturePauseState = pauseState }
         monitor.stop()
-        schedulePauseExpiration(for: preferences.capturePauseState)
+        schedulePauseExpiration(for: pauseState)
     }
 
     func resume() {
@@ -61,9 +68,7 @@ final class ClipboardCaptureService {
         pauseExpirationTask?.cancel()
         pauseExpirationTask = nil
 
-        var preferences = preferencesStore.preferences
-        preferences.capturePauseState = .active
-        preferencesStore.save(preferences)
+        preferencesStore.update { $0.capturePauseState = .active }
         startMonitoringIfNeeded()
     }
 
@@ -86,9 +91,7 @@ final class ClipboardCaptureService {
             schedulePauseExpiration(for: state)
         } else {
             if case .pausedUntil = state {
-                var preferences = preferencesStore.preferences
-                preferences.capturePauseState = .active
-                preferencesStore.save(preferences)
+                preferencesStore.update { $0.capturePauseState = .active }
             }
             startMonitoringIfNeeded()
         }
@@ -96,7 +99,7 @@ final class ClipboardCaptureService {
 
     private func startMonitoringIfNeeded() {
         guard isStarted,
-              let store,
+              store != nil,
               let preferencesStore,
               !preferencesStore.preferences.capturePauseState.isPaused()
         else {
@@ -112,19 +115,37 @@ final class ClipboardCaptureService {
                 return
             }
 
+            let copiedAt = Date.now
             let retentionPolicy = preferencesStore.preferences.retentionPolicy
-            Task {
-                do {
-                    _ = try await store.recordCopy(
-                        content,
-                        sourceAppBundleID: sourceBundleID,
-                        copiedAt: .now,
-                        retentionPolicy: retentionPolicy)
-                } catch {
-                    self.logger.error(
-                        "Failed to save clipboard item: \(error.localizedDescription, privacy: .public)")
-                }
+            self.record(
+                content,
+                sourceBundleID: sourceBundleID,
+                copiedAt: copiedAt,
+                retentionPolicy: retentionPolicy,
+                using: store)
+        }
+    }
+
+    private func record(
+        _ content: String,
+        sourceBundleID: String?,
+        copiedAt: Date,
+        retentionPolicy: ClipboardRetentionPolicy,
+        using store: any ClipboardStore
+    ) {
+        let taskID = UUID()
+        recordTasks[taskID] = Task { [weak self, store] in
+            do {
+                _ = try await store.recordCopy(
+                    content,
+                    sourceAppBundleID: sourceBundleID,
+                    copiedAt: copiedAt,
+                    retentionPolicy: retentionPolicy)
+            } catch {
+                self?.logger.error(
+                    "Failed to save clipboard item: \(error.localizedDescription, privacy: .public)")
             }
+            self?.recordTasks[taskID] = nil
         }
     }
 
@@ -144,13 +165,12 @@ final class ClipboardCaptureService {
     private func startPruningTask() {
         pruningTask?.cancel()
         pruningTask = Task { [weak self] in
-            guard let self else { return }
-            await self.pruneExpiredItems()
+            await self?.pruneExpiredItems()
 
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(24 * 60 * 60))
                 guard !Task.isCancelled else { return }
-                await self.pruneExpiredItems()
+                await self?.pruneExpiredItems()
             }
         }
     }

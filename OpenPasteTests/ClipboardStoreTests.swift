@@ -35,6 +35,14 @@ struct ClipboardStoreTests {
     }
 
     @Test
+    func deduplicationKeysRemainStableAcrossIdentityRefactor() {
+        #expect(ClipboardContent.classify("exact text").deduplicationKey == "text:exact text")
+        #expect(
+            ClipboardContent.classify("HTTPS://ExAmPle.COM:443").deduplicationKey
+                == "link:https://example.com/")
+    }
+
+    @Test
     func normalizedURLsShareAnIdentity() async throws {
         let store = try makeStore()
         let first = try await store.recordCopy(
@@ -195,6 +203,37 @@ struct ClipboardStoreTests {
     }
 
     @Test
+    func repeatedLinkCopiesShareAnInFlightMetadataRequest() async throws {
+        let database = try AppDatabase.makeInMemory()
+        let loader = ControlledMetadataLoader()
+        let store = ClipboardRepository(database: database, metadataLoader: loader)
+        let copiedAt = Date(timeIntervalSince1970: 1_700_000_000)
+
+        let first = try await store.recordCopy(
+            "https://example.com/",
+            sourceAppBundleID: nil,
+            copiedAt: copiedAt)
+        await loader.waitUntilRequested()
+
+        let second = try await store.recordCopy(
+            "https://example.com/",
+            sourceAppBundleID: nil,
+            copiedAt: copiedAt.addingTimeInterval(1))
+
+        #expect(first?.id == second?.id)
+        #expect(await loader.requestCount == 1)
+        #expect(try await store.history(limit: 10).first?.content == "https://example.com/")
+
+        let stream = await store.observeHistory(limit: 10)
+        var iterator = stream.makeAsyncIterator()
+        _ = try await iterator.next()
+        await loader.completeAll(with: ClipboardLinkMetadata(title: "Example", description: nil))
+
+        let updated = try await iterator.next()
+        #expect(updated?.first?.title == "Example")
+    }
+
+    @Test
     func concurrentCopiesRemainDeduplicated() async throws {
         let store = try makeStore()
         let baseDate = Date(timeIntervalSince1970: 1_700_000_000)
@@ -277,6 +316,36 @@ struct ClipboardStoreTests {
         ClipboardRepository(
             database: try AppDatabase.makeInMemory(),
             metadataLoader: NoopMetadataLoader())
+    }
+}
+
+private actor ControlledMetadataLoader: LinkMetadataLoading {
+    private(set) var requestCount = 0
+    private var pendingRequests: [CheckedContinuation<ClipboardLinkMetadata?, Never>] = []
+    private var requestWaiters: [CheckedContinuation<Void, Never>] = []
+
+    func metadata(for url: URL) async throws -> ClipboardLinkMetadata? {
+        requestCount += 1
+        let waiters = requestWaiters
+        requestWaiters.removeAll()
+        waiters.forEach { $0.resume() }
+
+        return await withCheckedContinuation { continuation in
+            pendingRequests.append(continuation)
+        }
+    }
+
+    func waitUntilRequested() async {
+        guard requestCount == 0 else { return }
+        await withCheckedContinuation { continuation in
+            requestWaiters.append(continuation)
+        }
+    }
+
+    func completeAll(with metadata: ClipboardLinkMetadata?) {
+        let continuations = pendingRequests
+        pendingRequests.removeAll()
+        continuations.forEach { $0.resume(returning: metadata) }
     }
 }
 

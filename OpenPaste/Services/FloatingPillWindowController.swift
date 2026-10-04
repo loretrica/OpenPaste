@@ -1,48 +1,5 @@
 import AppKit
-import Observation
 import SwiftUI
-
-@MainActor
-@Observable
-final class PillWindowState {
-    var isCompact = false
-
-    func update(forHeight height: CGFloat) {
-        isCompact = PillWindowGeometry.isCompact(height: height)
-    }
-}
-
-enum PillWindowGeometry {
-    static let compactHeightThreshold: CGFloat = 320
-    static let horizontalMargin: CGFloat = 24
-    static let maximumCompactCardSide: CGFloat = 220
-    static let maximumFullCardSide: CGFloat = 320
-
-    static func cardSide(availableHeight: CGFloat, isCompact: Bool) -> CGFloat {
-        let maximumSide = isCompact ? maximumCompactCardSide : maximumFullCardSide
-        return max(1, min(availableHeight, maximumSide))
-    }
-
-    static func frame(
-        for dimensions: WindowDimensions,
-        in visibleFrame: CGRect,
-        bottomInset: CGFloat = 18
-    ) -> CGRect {
-        let safeWidth = max(1, visibleFrame.width - horizontalMargin * 2)
-        let safeHeight = max(1, visibleFrame.height - bottomInset)
-        let size = WindowDimensions(width: safeWidth, height: dimensions.height)
-            .clamped(to: CGSize(width: safeWidth, height: safeHeight))
-        return CGRect(
-            x: visibleFrame.minX + (visibleFrame.width - size.width) / 2,
-            y: visibleFrame.minY + bottomInset,
-            width: size.width,
-            height: size.height)
-    }
-
-    static func isCompact(height: CGFloat) -> Bool {
-        height <= compactHeightThreshold
-    }
-}
 
 @MainActor
 final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
@@ -66,7 +23,7 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
         let initialFrame = PillWindowGeometry.frame(
             for: preferencesStore.preferences.windowDimensions,
             in: NSScreen.main?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900))
-        let panel = NSPanel(
+        let panel = ClipboardPillPanel(
             contentRect: initialFrame,
             styleMask: [.borderless, .resizable],
             backing: .buffered,
@@ -114,12 +71,13 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
     func show() {
         guard let panel = window as? NSPanel else { return }
         if panel.isVisible {
+            NSApp.activate()
             panel.makeKeyAndOrderFront(nil)
             return
         }
 
         previousApplication = NSWorkspace.shared.frontmostApplication
-        let screen = activeScreen()
+        let screen = PillWindowScreenLocator.activeScreen()
         let visibleFrame = screen?.visibleFrame
             ?? NSScreen.main?.visibleFrame
             ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
@@ -138,6 +96,7 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
 
         panel.setFrame(targetFrame.offsetBy(dx: 0, dy: -28), display: false)
         panel.alphaValue = 0
+        NSApp.activate()
         panel.makeKeyAndOrderFront(nil)
         installClickMonitors()
         NSAnimationContext.runAnimationGroup { context in
@@ -154,7 +113,7 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
         removeClickMonitors()
         panel.orderOut(nil)
         if restoreFocus, let previousApplication, !previousApplication.isTerminated {
-            previousApplication.activate(options: [.activateIgnoringOtherApps])
+            previousApplication.activate(options: [])
         }
         isDismissing = false
     }
@@ -167,15 +126,13 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
     func windowDidResize(_ notification: Notification) {
         guard let panel = window, panel.isVisible, !isRepositioning else { return }
         pillState.update(forHeight: panel.frame.height)
-        repositionAtBottom(of: activeScreen())
+        repositionAtBottom(of: PillWindowScreenLocator.activeScreen())
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {
         guard let panel = window else { return }
         let dimensions = WindowDimensions(width: panel.frame.width, height: panel.frame.height)
-        var preferences = preferencesStore.preferences
-        preferences.windowDimensions = dimensions
-        preferencesStore.save(preferences)
+        preferencesStore.update { $0.windowDimensions = dimensions }
     }
 
     private func repositionAtBottom(of screen: NSScreen?) {
@@ -235,36 +192,9 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
             }
         }
     }
+}
 
-    private func activeScreen() -> NSScreen? {
-        let frontmostPID = NSWorkspace.shared.frontmostApplication?.processIdentifier
-        if let frontmostPID,
-           let windowFrame = frontmostWindowFrame(processID: frontmostPID),
-           let screen = NSScreen.screens.first(where: { $0.frame.intersects(windowFrame) }) {
-            return screen
-        }
-
-        let mouseLocation = NSEvent.mouseLocation
-        return NSScreen.screens.first(where: { $0.frame.contains(mouseLocation) }) ?? NSScreen.main
-    }
-
-    private func frontmostWindowFrame(processID: pid_t) -> CGRect? {
-        guard let windows = CGWindowListCopyWindowInfo(.optionOnScreenOnly, kCGNullWindowID)
-                as? [[String: Any]]
-        else {
-            return nil
-        }
-
-        for windowInfo in windows {
-            guard let owner = windowInfo[kCGWindowOwnerPID as String] as? pid_t,
-                  owner == processID,
-                  let bounds = windowInfo[kCGWindowBounds as String] as? NSDictionary,
-                  let frame = CGRect(dictionaryRepresentation: bounds)
-            else {
-                continue
-            }
-            return frame
-        }
-        return nil
-    }
+@MainActor
+private final class ClipboardPillPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
 }

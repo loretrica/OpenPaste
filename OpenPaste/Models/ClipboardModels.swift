@@ -6,75 +6,6 @@ enum ClipboardItemKind: String, CaseIterable, Codable, Sendable {
     case link
 }
 
-enum ClipboardContent: Sendable, Equatable {
-    case text(String)
-    case link(rawURL: String, canonicalURL: String)
-
-    var kind: ClipboardItemKind {
-        switch self {
-        case .text: .text
-        case .link: .link
-        }
-    }
-
-    var value: String {
-        switch self {
-        case let .text(value): value
-        case let .link(rawURL, _): rawURL
-        }
-    }
-
-    var canonicalURL: String? {
-        guard case let .link(_, canonicalURL) = self else { return nil }
-        return canonicalURL
-    }
-
-    var deduplicationKey: String {
-        switch self {
-        case let .text(value):
-            "text:\(value)"
-        case let .link(_, canonicalURL):
-            "link:\(canonicalURL)"
-        }
-    }
-
-    static func classify(_ value: String) -> ClipboardContent {
-        guard let canonicalURL = URLIdentity.canonicalize(value) else {
-            return .text(value)
-        }
-        return .link(rawURL: value, canonicalURL: canonicalURL)
-    }
-}
-
-enum URLIdentity {
-    static func canonicalize(_ rawValue: String) -> String? {
-        let trimmedValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard var components = URLComponents(string: trimmedValue),
-              let scheme = components.scheme?.lowercased(),
-              scheme == "http" || scheme == "https",
-              let host = components.host,
-              !host.isEmpty,
-              !trimmedValue.contains(where: \.isWhitespace)
-        else {
-            return nil
-        }
-
-        components.scheme = scheme
-        components.host = host.lowercased()
-
-        if (scheme == "http" && components.port == 80)
-            || (scheme == "https" && components.port == 443) {
-            components.port = nil
-        }
-
-        if components.percentEncodedPath.isEmpty {
-            components.percentEncodedPath = "/"
-        }
-
-        return components.string
-    }
-}
-
 struct ClipboardItem: Codable, FetchableRecord, Identifiable, Sendable, Equatable {
     var id: Int64?
     var kind: ClipboardItemKind
@@ -117,35 +48,26 @@ enum ClipboardRetentionPolicy: String, CaseIterable, Codable, Sendable, Identifi
     }
 
     func cutoffDate(relativeTo date: Date) -> Date? {
-        let calendar = Calendar(identifier: .gregorian)
-        return switch self {
-        case .oneDay:
-            calendar.date(byAdding: .day, value: -1, to: date)
-        case .oneWeek:
-            calendar.date(byAdding: .day, value: -7, to: date)
-        case .oneMonth:
-            calendar.date(byAdding: .month, value: -1, to: date)
-        case .oneYear:
-            calendar.date(byAdding: .year, value: -1, to: date)
-        case .forever:
-            nil
-        }
+        adjustedDate(relativeTo: date, direction: -1)
     }
 
     func expirationDate(relativeTo date: Date) -> Date? {
-        let calendar = Calendar(identifier: .gregorian)
-        return switch self {
-        case .oneDay:
-            calendar.date(byAdding: .day, value: 1, to: date)
-        case .oneWeek:
-            calendar.date(byAdding: .day, value: 7, to: date)
-        case .oneMonth:
-            calendar.date(byAdding: .month, value: 1, to: date)
-        case .oneYear:
-            calendar.date(byAdding: .year, value: 1, to: date)
-        case .forever:
-            nil
+        adjustedDate(relativeTo: date, direction: 1)
+    }
+
+    private func adjustedDate(relativeTo date: Date, direction: Int) -> Date? {
+        let componentAndValue: (Calendar.Component, Int)? = switch self {
+        case .oneDay: (.day, 1)
+        case .oneWeek: (.day, 7)
+        case .oneMonth: (.month, 1)
+        case .oneYear: (.year, 1)
+        case .forever: nil
         }
+        guard let (component, value) = componentAndValue else { return nil }
+        return Calendar(identifier: .gregorian).date(
+            byAdding: component,
+            value: value * direction,
+            to: date)
     }
 }
 

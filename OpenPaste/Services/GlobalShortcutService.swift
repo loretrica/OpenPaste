@@ -37,10 +37,7 @@ final class GlobalShortcutService {
             &hotKey)
         guard registerStatus == noErr else {
             registrationError = registerStatus
-            if let eventHandler {
-                RemoveEventHandler(eventHandler)
-                self.eventHandler = nil
-            }
+            removeEventHandler()
             return
         }
         registrationError = nil
@@ -51,15 +48,18 @@ final class GlobalShortcutService {
             UnregisterEventHotKey(hotKey)
             self.hotKey = nil
         }
-        if let eventHandler {
-            RemoveEventHandler(eventHandler)
-            self.eventHandler = nil
-        }
+        removeEventHandler()
         registrationError = nil
     }
 
     fileprivate func activateFromHotKey() {
         onActivate?()
+    }
+
+    private func removeEventHandler() {
+        guard let eventHandler else { return }
+        RemoveEventHandler(eventHandler)
+        self.eventHandler = nil
     }
 }
 
@@ -69,13 +69,11 @@ private func openPasteGlobalHotKeyHandler(
     _ userData: UnsafeMutableRawPointer?
 ) -> OSStatus {
     guard let userData else { return OSStatus(eventNotHandledErr) }
-    let pointerValue = UInt(bitPattern: userData)
-    Task { @MainActor in
-        guard let pointer = UnsafeMutableRawPointer(bitPattern: pointerValue) else { return }
-        Unmanaged<GlobalShortcutService>
-            .fromOpaque(pointer)
-            .takeUnretainedValue()
-            .activateFromHotKey()
+    let service = Unmanaged<GlobalShortcutService>
+        .fromOpaque(userData)
+        .takeUnretainedValue()
+    Task { @MainActor [service] in
+        service.activateFromHotKey()
     }
     return noErr
 }
