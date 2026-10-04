@@ -1,45 +1,53 @@
 # OpenPaste
 
-📝 **OpenPaste** è un progetto in sviluppo con l’obiettivo di diventare un gestore degli appunti gratuito, ispirato a [Paste](https://pasteapp.io/).
+📝 **OpenPaste** è un gestore degli appunti gratuito in sviluppo, ispirato a [Paste](https://pasteapp.io/). È un progetto indipendente e non è affiliato a Paste.
 
-L’idea è poter ritrovare e riutilizzare ciò che si copia, senza pagare per le funzioni di base. OpenPaste è un progetto indipendente e non è affiliato a Paste.
+## Stato
 
-> 🚧 **Stato del progetto:** prototipo iniziale. Al momento l’app mostra soltanto la schermata predefinita di SwiftUI (“Hello, world!”). Non registra né mostra la cronologia degli appunti.
+OpenPaste acquisisce automaticamente testo e link copiati mentre l’app è in esecuzione, anche se la finestra viene chiusa, e li salva nel database locale. L’interfaccia SwiftUI osserva cronologia e raccolte, consente di cercare, assegnare elementi e gestire la retention.
 
-## 🎯 Direzione del progetto
+## Funzioni disponibili
 
-Le seguenti funzioni descrivono l’obiettivo di OpenPaste; **non sono ancora disponibili**:
+- Database SQLite locale tramite GRDB 7, con migrazioni versionate e indice full-text FTS5.
+- Supporto dati per testo e link HTTP/HTTPS, con deduplicazione del testo esatto e degli URL normalizzati.
+- Le copie successive dello stesso contenuto aggiornano data, sorgente e posizione nella cronologia.
+- Ricerca reattiva di contenuto, titolo e descrizione dei link.
+- Conservazione configurabile: 1 giorno, 1 settimana, 1 mese, 1 anno o per sempre. Il valore iniziale è 1 mese.
+- API per osservare e gestire raccolte, assegnarvi un elemento, rimuoverlo dalla cronologia e cancellarlo definitivamente.
+- Recupero asincrono di titolo e descrizione per i link; se il recupero fallisce, l’URL resta salvato.
+- Provenienza dell’ultima copia tramite bundle ID dell’app sorgente.
 
-- 📋 Conservare una cronologia degli elementi copiati.
-- 🔎 Cercare rapidamente nella cronologia.
-- 📌 Contrassegnare gli elementi da riutilizzare spesso.
-- ⚡ Rendere rapido l’accesso agli appunti salvati.
+Il monitor controlla gli aggiornamenti della clipboard ogni 250 ms mentre l’app è in esecuzione; legge il testo e ignora i contenuti vuoti. Per metadati dei link rifiuta gli host locali e gli indirizzi privati noti. Immagini, file, sincronizzazione, collaborazione e filtri per app sorgente non sono inclusi.
 
-La gestione di immagini e altri tipi di contenuto, la sincronizzazione tra dispositivi e le impostazioni di privacy sono ancora da definire.
+## Dati e privacy
 
-## ✅ Funzionalità disponibili
+Il database si trova in ~/Library/Application Support/OpenPaste/OpenPaste.sqlite. I contenuti vengono conservati localmente e non inviati a server OpenPaste. Per recuperare i metadati, l’app effettua una richiesta HTTP/HTTPS al sito del link copiato. Le richieste non usano cookie o cache condivisi.
 
-Al momento non sono implementate funzioni di gestione degli appunti. Il progetto contiene:
+L’App Sandbox è disattivata nel target, in linea con la distribuzione diretta prevista. Hardened Runtime è attivo; firma Developer ID e notarizzazione restano da configurare prima di distribuire una release.
 
-- 🖥️ Un’app macOS basata su SwiftUI con una schermata segnaposto.
-- 🧪 Target di test iniziali, ancora senza verifiche funzionali significative.
+## Requisiti
 
-## 🛠️ Avvio del progetto
+- macOS 27 o successivo, secondo il deployment target Xcode attuale.
+- Xcode 16 o successivo e compilatore Swift 6, richiesti da GRDB 7.
+- Dipendenza Swift Package Manager: [GRDB.swift](https://github.com/groue/GRDB.swift), prodotto GRDB.
 
-1. Apri `OpenPaste.xcodeproj` con Xcode.
-2. Seleziona lo schema **OpenPaste**.
-3. Scegli **My Mac** come destinazione di esecuzione.
-4. Premi **Run** (▶) per compilare e avviare l’app.
+## Avvio
 
-Il progetto non dichiara ancora requisiti minimi di versione di macOS o Xcode.
+1. Apri OpenPaste.xcodeproj con Xcode.
+2. Seleziona lo schema OpenPaste.
+3. Scegli My Mac come destinazione.
+4. Premi Run (▶).
 
-## 🗂️ Struttura essenziale
+Il target test OpenPasteTests include test per deduplicazione, retention, raccolte, ricerca reattiva, concorrenza e ricerca su 100.000 elementi.
 
-- `OpenPaste/` — codice dell’app SwiftUI.
-- `OpenPasteTests/` — target per i test unitari.
-- `OpenPasteUITests/` — target per i test dell’interfaccia.
-- `OpenPaste.xcodeproj/` — progetto Xcode.
+## Struttura essenziale
 
-## 📄 Licenza
+- OpenPaste/Database/ — migrazioni SQLite e repository.
+- OpenPaste/Models/ — modelli e stato osservabile SwiftUI.
+- OpenPaste/Services/ — monitor della clipboard e recupero dei metadati dei link.
+- OpenPasteTests/ — test del database e dell’interfaccia.
+- OpenPaste.xcodeproj/ — progetto Xcode.
 
-La licenza del progetto non è ancora stata definita. Fino alla sua aggiunta, non presumere che il codice sia disponibile per il riutilizzo o la redistribuzione.
+## Licenza
+
+La licenza non è ancora stata definita. Fino alla sua aggiunta, non presumere che il codice sia disponibile per il riutilizzo o la redistribuzione.
