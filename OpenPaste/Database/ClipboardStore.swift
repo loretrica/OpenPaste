@@ -19,7 +19,8 @@ protocol ClipboardStore: Sendable {
     func recordCopy(
         _ content: String,
         sourceAppBundleID: String?,
-        copiedAt: Date
+        copiedAt: Date,
+        retentionPolicy: ClipboardRetentionPolicy
     ) async throws -> ClipboardItem?
 
     func history(limit: Int) async throws -> [ClipboardItem]
@@ -39,7 +40,21 @@ protocol ClipboardStore: Sendable {
     func deletePermanently(itemID: Int64) async throws
     func removeCollection(collectionID: Int64) async throws
     func clearHistory() async throws
-    func applyRetentionPolicy(_ policy: ClipboardRetentionPolicy, now: Date) async throws
+    func pruneExpiredHistory(now: Date) async throws
+}
+
+extension ClipboardStore {
+    func recordCopy(
+        _ content: String,
+        sourceAppBundleID: String?,
+        copiedAt: Date
+    ) async throws -> ClipboardItem? {
+        try await recordCopy(
+            content,
+            sourceAppBundleID: sourceAppBundleID,
+            copiedAt: copiedAt,
+            retentionPolicy: .oneMonth)
+    }
 }
 
 protocol LinkMetadataLoading: Sendable {
@@ -58,7 +73,8 @@ actor ClipboardRepository: ClipboardStore {
     func recordCopy(
         _ content: String,
         sourceAppBundleID: String?,
-        copiedAt: Date = .now
+        copiedAt: Date = .now,
+        retentionPolicy: ClipboardRetentionPolicy = .oneMonth
     ) async throws -> ClipboardItem? {
         guard !content.isEmpty else { return nil }
 
@@ -66,7 +82,8 @@ actor ClipboardRepository: ClipboardStore {
         let item = try await database.recordCopy(
             content: classified,
             sourceAppBundleID: sourceAppBundleID,
-            copiedAt: copiedAt)
+            copiedAt: copiedAt,
+            retentionPolicy: retentionPolicy)
 
         guard classified.kind == .link,
               item.title == nil,
@@ -147,7 +164,7 @@ actor ClipboardRepository: ClipboardStore {
         try await database.clearHistory()
     }
 
-    func applyRetentionPolicy(_ policy: ClipboardRetentionPolicy, now: Date = .now) async throws {
-        try await database.applyRetentionPolicy(policy, now: now)
+    func pruneExpiredHistory(now: Date = .now) async throws {
+        try await database.pruneExpiredHistory(now: now)
     }
 }

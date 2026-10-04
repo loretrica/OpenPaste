@@ -86,6 +86,7 @@ struct ClipboardItem: Codable, FetchableRecord, Identifiable, Sendable, Equatabl
     var sourceAppBundleID: String?
     var firstCopiedAt: Date
     var lastCopiedAt: Date
+    var expiresAt: Date?
     var isInHistory: Bool
     var collectionID: Int64?
 }
@@ -126,6 +127,22 @@ enum ClipboardRetentionPolicy: String, CaseIterable, Codable, Sendable, Identifi
             calendar.date(byAdding: .month, value: -1, to: date)
         case .oneYear:
             calendar.date(byAdding: .year, value: -1, to: date)
+        case .forever:
+            nil
+        }
+    }
+
+    func expirationDate(relativeTo date: Date) -> Date? {
+        let calendar = Calendar(identifier: .gregorian)
+        return switch self {
+        case .oneDay:
+            calendar.date(byAdding: .day, value: 1, to: date)
+        case .oneWeek:
+            calendar.date(byAdding: .day, value: 7, to: date)
+        case .oneMonth:
+            calendar.date(byAdding: .month, value: 1, to: date)
+        case .oneYear:
+            calendar.date(byAdding: .year, value: 1, to: date)
         case .forever:
             nil
         }

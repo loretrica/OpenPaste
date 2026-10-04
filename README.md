@@ -4,7 +4,7 @@
 
 ## Stato
 
-OpenPaste acquisisce automaticamente testo e link copiati mentre l’app è in esecuzione, anche se la finestra viene chiusa, e li salva nel database locale. L’interfaccia SwiftUI osserva cronologia e raccolte, consente di cercare, assegnare elementi e gestire la retention.
+OpenPaste acquisisce automaticamente testo e link copiati mentre l’app è in esecuzione, anche se la mega pill è chiusa, e li salva nel database locale. La pillola flottante si apre all’avvio o con ⇧⌘V, compare dal basso sul display attivo e si chiude con Escape o clic esterno. Riducendone l’altezza passa automaticamente alla vista compatta.
 
 ## Funzioni disponibili
 
@@ -16,6 +16,11 @@ OpenPaste acquisisce automaticamente testo e link copiati mentre l’app è in e
 - API per osservare e gestire raccolte, assegnarvi un elemento, rimuoverlo dalla cronologia e cancellarlo definitivamente.
 - Recupero asincrono di titolo e descrizione per i link; se il recupero fallisce, l’URL resta salvato.
 - Provenienza dell’ultima copia tramite bundle ID dell’app sorgente.
+- Scorciatoia globale iniziale ⇧⌘V e comando di pausa nel menu di stato (15 minuti, 1 ora o fino alla ripresa manuale).
+- Preferenze locali per retention, dimensioni della pillola e scorciatoia; le dimensioni vengono ripristinate alla prossima apertura.
+- Vista compatta automatica sotto i 320 pt di altezza.
+
+La retention viene registrata per ogni copia: cambiare la durata influisce sulle copie successive e non rimuove quelle già presenti. Gli elementi scaduti vengono tolti dalla cronologia all’avvio e ogni 24 ore mentre l’app è in esecuzione; se appartengono a una raccolta, restano conservati lì.
 
 Il monitor controlla gli aggiornamenti della clipboard ogni 250 ms mentre l’app è in esecuzione; legge il testo e ignora i contenuti vuoti. Per metadati dei link rifiuta gli host locali e gli indirizzi privati noti. Immagini, file, sincronizzazione, collaborazione e filtri per app sorgente non sono inclusi.
 

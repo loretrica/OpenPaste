@@ -133,27 +133,56 @@ actor AppDatabase {
                 """)
         }
 
+        migrator.registerMigration("v3") { db in
+            try db.alter(table: "clipboard_items") { table in
+                table.add(column: "expiresAt", .datetime)
+            }
+            try db.create(
+                index: "clipboard_items_expiration",
+                on: "clipboard_items",
+                columns: ["isInHistory", "expiresAt"])
+
+            let legacyPolicy = ClipboardPreferences.retentionPolicy
+            if legacyPolicy != .forever {
+                let rows = try Row.fetchAll(
+                    db,
+                    sql: "SELECT id, lastCopiedAt FROM clipboard_items")
+                for row in rows {
+                    let itemID: Int64 = row["id"]
+                    let copiedAt: Date = row["lastCopiedAt"]
+                    guard let expiration = legacyPolicy.expirationDate(relativeTo: copiedAt) else {
+                        continue
+                    }
+                    try db.execute(
+                        sql: "UPDATE clipboard_items SET expiresAt = ? WHERE id = ?",
+                        arguments: [expiration, itemID])
+                }
+            }
+        }
+
         return migrator
     }
 
     func recordCopy(
         content: ClipboardContent,
         sourceAppBundleID: String?,
-        copiedAt: Date
+        copiedAt: Date,
+        retentionPolicy: ClipboardRetentionPolicy = .oneMonth
     ) async throws -> ClipboardItem {
         try await writer.write { db in
             let kind = content.kind.rawValue
             let sql = """
                 INSERT INTO clipboard_items (
                     kind, content, deduplicationKey, canonicalURL,
-                    firstCopiedAt, lastCopiedAt, sourceAppBundleID, isInHistory
+                    firstCopiedAt, lastCopiedAt, sourceAppBundleID, expiresAt, isInHistory
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
                 ON CONFLICT(deduplicationKey) DO UPDATE SET
                     content = excluded.content,
                     canonicalURL = excluded.canonicalURL,
                     lastCopiedAt = excluded.lastCopiedAt,
                     sourceAppBundleID = excluded.sourceAppBundleID,
+                    expiresAt = excluded.expiresAt,
                     isInHistory = 1
                 RETURNING *
                 """
@@ -167,7 +196,8 @@ actor AppDatabase {
                     content.canonicalURL,
                     copiedAt,
                     copiedAt,
-                    sourceAppBundleID
+                    sourceAppBundleID,
+                    retentionPolicy.expirationDate(relativeTo: copiedAt)
                 ])
             else {
                 throw DatabaseError(resultCode: .SQLITE_NOTFOUND)
@@ -322,17 +352,15 @@ actor AppDatabase {
         }
     }
 
-    func applyRetentionPolicy(_ policy: ClipboardRetentionPolicy, now: Date) async throws {
-        guard let cutoff = policy.cutoffDate(relativeTo: now) else { return }
-
+    func pruneExpiredHistory(now: Date) async throws {
         try await writer.write { db in
             try db.execute(
                 sql: """
                     UPDATE clipboard_items
                     SET isInHistory = 0
-                    WHERE isInHistory = 1 AND lastCopiedAt < ?
+                    WHERE isInHistory = 1 AND expiresAt IS NOT NULL AND expiresAt <= ?
                     """,
-                arguments: [cutoff])
+                arguments: [now])
             try Self.deleteOrphanedItems(db)
         }
     }

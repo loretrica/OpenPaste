@@ -3,15 +3,26 @@ import SwiftUI
 @MainActor
 struct ContentView: View {
     @State private var model: ClipboardHistoryViewModel
+    @State private var pillState: PillWindowState
     @State private var isCreatingCollection = false
     @State private var isConfirmingCollectionDeletion = false
     @State private var newCollectionName = ""
+    private let onDismiss: () -> Void
 
-    init(store: (any ClipboardStore)?, startupError: String? = nil) {
+    init(
+        store: (any ClipboardStore)?,
+        startupError: String? = nil,
+        preferencesStore: any PreferencesStore = UserDefaultsPreferencesStore.shared,
+        pillState: PillWindowState = PillWindowState(),
+        onDismiss: @escaping () -> Void = {}
+    ) {
         _model = State(
             initialValue: ClipboardHistoryViewModel(
                 store: store,
-                startupError: startupError))
+                startupError: startupError,
+                preferencesStore: preferencesStore))
+        _pillState = State(initialValue: pillState)
+        self.onDismiss = onDismiss
     }
 
     var body: some View {
@@ -83,6 +94,25 @@ struct ContentView: View {
                         model.searchText.isEmpty
                             ? "Copia testo o un link in un’altra app per salvarlo qui."
                             : "Prova con un’altra parola."))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if pillState.isCompact {
+                ScrollView(.horizontal) {
+                    LazyHStack(spacing: 10) {
+                        ForEach(model.displayedItems) { item in
+                            ClipboardItemRow(
+                                item: item,
+                                collections: model.collections,
+                                onMove: { model.move(item, to: $0) },
+                                onRemoveFromHistory: { model.removeFromHistory(item) },
+                                onDelete: { model.deletePermanently(item) })
+                                .frame(width: 280)
+                                .padding(10)
+                                .background(.quaternary, in: RoundedRectangle(cornerRadius: 16))
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                }
+                .scrollIndicators(.hidden)
             } else {
                 List(model.displayedItems) { item in
                     ClipboardItemRow(
@@ -95,7 +125,20 @@ struct ContentView: View {
                 .listStyle(.inset)
             }
         }
-        .frame(minWidth: 680, minHeight: 460)
+        .padding(14)
+        .frame(minWidth: 640, minHeight: 180)
+        .background(
+            .regularMaterial,
+            in: RoundedRectangle(
+                cornerRadius: pillState.isCompact ? 72 : 40,
+                style: .continuous))
+        .overlay {
+            RoundedRectangle(
+                cornerRadius: pillState.isCompact ? 72 : 40,
+                style: .continuous)
+                .strokeBorder(.white.opacity(0.16), lineWidth: 1)
+        }
+        .onExitCommand(perform: onDismiss)
         .task {
             model.start()
         }

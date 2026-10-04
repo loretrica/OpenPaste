@@ -13,35 +13,35 @@ final class ClipboardHistoryViewModel {
     var errorMessage: String?
     var retentionPolicy: ClipboardRetentionPolicy {
         didSet {
-            ClipboardPreferences.retentionPolicy = retentionPolicy
-            guard let store else { return }
-            Task {
-                do {
-                    try await store.applyRetentionPolicy(retentionPolicy, now: .now)
-                } catch {
-                    errorMessage = error.localizedDescription
-                }
-            }
+            var preferences = preferencesStore.preferences
+            preferences.retentionPolicy = retentionPolicy
+            preferencesStore.save(preferences)
         }
     }
 
     @ObservationIgnored private let store: (any ClipboardStore)?
+    @ObservationIgnored private let preferencesStore: any PreferencesStore
     @ObservationIgnored private var historyTask: Task<Void, Never>?
     @ObservationIgnored private var collectionsTask: Task<Void, Never>?
     @ObservationIgnored private var collectionItemsTask: Task<Void, Never>?
     @ObservationIgnored private var searchTask: Task<Void, Never>?
 
-    init(store: (any ClipboardStore)?, startupError: String? = nil) {
+    init(
+        store: (any ClipboardStore)?,
+        startupError: String? = nil,
+        preferencesStore: any PreferencesStore = UserDefaultsPreferencesStore.shared
+    ) {
         self.store = store
+        self.preferencesStore = preferencesStore
         self.errorMessage = startupError
-        self.retentionPolicy = ClipboardPreferences.retentionPolicy
+        self.retentionPolicy = preferencesStore.preferences.retentionPolicy
     }
 
     func start() {
         guard historyTask == nil, let store else { return }
         historyTask = Task {
             do {
-                try await store.applyRetentionPolicy(retentionPolicy, now: .now)
+                try await store.pruneExpiredHistory(now: .now)
                 let stream = await store.observeHistory(limit: 100)
                 for try await items in stream {
                     historyItems = items

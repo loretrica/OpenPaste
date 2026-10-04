@@ -58,7 +58,8 @@ struct ClipboardStoreTests {
         let item = try #require(await store.recordCopy(
             "saved text",
             sourceAppBundleID: nil,
-            copiedAt: oldDate))
+            copiedAt: oldDate,
+            retentionPolicy: .oneDay))
         let itemID = try #require(item.id)
         let collection = try await store.createCollection(name: "Progetto", createdAt: oldDate)
         let collectionID = try #require(collection.id)
@@ -69,7 +70,7 @@ struct ClipboardStoreTests {
         var collectionIterator = collectionStream.makeAsyncIterator()
         #expect(try await collectionIterator.next() == [collection])
 
-        try await store.applyRetentionPolicy(.oneDay, now: Date(timeIntervalSince1970: 200_000))
+        try await store.pruneExpiredHistory(now: Date(timeIntervalSince1970: 200_000))
         #expect(try await store.history(limit: 20).isEmpty)
         #expect(try await store.collectionItems(collectionID: collectionID, limit: 20).count == 1)
 
@@ -77,6 +78,53 @@ struct ClipboardStoreTests {
         #expect(try await collectionIterator.next()?.isEmpty == true)
         #expect(try await store.collectionItems(collectionID: collectionID, limit: 20).isEmpty)
         #expect(try await store.search(query: "saved", limit: 20, offset: 0).isEmpty)
+    }
+
+    @Test
+    func retentionPolicyChangesOnlyAffectNewCopies() async throws {
+        let store = try makeStore()
+        let now = Date(timeIntervalSince1970: 2_000_000)
+        let existingCopyDate = now.addingTimeInterval(-10 * 24 * 60 * 60)
+        let newCopyDate = now.addingTimeInterval(-2 * 24 * 60 * 60)
+
+        let existing = try #require(await store.recordCopy(
+            "existing under one month",
+            sourceAppBundleID: nil,
+            copiedAt: existingCopyDate,
+            retentionPolicy: .oneMonth))
+        let recent = try #require(await store.recordCopy(
+            "new copy under one day",
+            sourceAppBundleID: nil,
+            copiedAt: newCopyDate,
+            retentionPolicy: .oneDay))
+
+        #expect(existing.expiresAt == ClipboardRetentionPolicy.oneMonth.expirationDate(relativeTo: existingCopyDate))
+        #expect(recent.expiresAt == ClipboardRetentionPolicy.oneDay.expirationDate(relativeTo: newCopyDate))
+
+        try await store.pruneExpiredHistory(now: now)
+
+        let history = try await store.history(limit: 20)
+        #expect(history.map { $0.content } == ["existing under one month"])
+    }
+
+    @Test
+    func recopyRefreshesExpirationUsingCurrentRetentionPolicy() async throws {
+        let store = try makeStore()
+        let firstCopyDate = Date(timeIntervalSince1970: 2_000_000)
+        let secondCopyDate = firstCopyDate.addingTimeInterval(60)
+
+        _ = try await store.recordCopy(
+            "repeated item",
+            sourceAppBundleID: nil,
+            copiedAt: firstCopyDate,
+            retentionPolicy: .oneMonth)
+        let repeated = try #require(await store.recordCopy(
+            "repeated item",
+            sourceAppBundleID: nil,
+            copiedAt: secondCopyDate,
+            retentionPolicy: .oneWeek))
+
+        #expect(repeated.expiresAt == ClipboardRetentionPolicy.oneWeek.expirationDate(relativeTo: secondCopyDate))
     }
 
     @Test
