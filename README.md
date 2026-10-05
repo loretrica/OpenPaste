@@ -4,7 +4,7 @@
 
 ## Stato
 
-OpenPaste conserva gli appunti localmente mentre l’app è in esecuzione, anche quando la pillola è chiusa. La pillola flottante si apre all’avvio o con ⇧⌘V, compare dal basso sul display attivo e occupa la larghezza disponibile con margini laterali. Riceve il focus della tastiera e ripristina l’app precedente alla chiusura con Escape.
+OpenPaste conserva gli appunti localmente mentre l’app è in esecuzione, anche quando la pillola è chiusa. La pillola flottante si apre all’avvio o con ⇧⌘V, compare dal basso sul display attivo, lascia 12 pt di margine laterale e inferiore e ha angoli arrotondati con raggio di 12 pt. Riceve il focus della tastiera e ripristina l’app precedente alla chiusura con Escape.
 
 La barra contiene ricerca, cronologia, raccolte colorate, aggiunta di una raccolta e menu. Le raccolte scorrono orizzontalmente e si possono riordinare. Le card sono quadrate, con intestazione colorata, icona dell’app sorgente e anteprima del contenuto. L’elemento attivo ha un bordo blu; gli altri elementi selezionati hanno un’indicazione distinta. Sono supportati aspetto chiaro e scuro e vista compatta automatica sotto i 320 pt. L’altezza iniziale è 360 pt; le dimensioni già salvate restano rispettate.
 
@@ -21,7 +21,7 @@ Testo e URL hanno chiavi di deduplicazione stabili. Le ricopie aggiornano data e
 
 ## Uso e tastiera
 
-Un clic seleziona una card. Un doppio clic o Invio copia l’elemento attivo, chiude la pillola e lo incolla nell’app precedente. Per l’incolla automatico macOS può richiedere il permesso di inviare eventi: la richiesta avviene alla prima azione, mai all’avvio. Se il permesso manca o l’app di destinazione non è disponibile, il contenuto rimane negli appunti per un incolla manuale.
+Un clic seleziona una card. Un doppio clic o Invio copia l’elemento attivo, chiude la pillola e lo incolla nell’app attiva prima dell’apertura, anche quando OpenPaste viene avviata con ⇧⌘V. Per l’incolla automatico macOS può richiedere il permesso di inviare eventi: la richiesta avviene alla prima azione, mai all’avvio. Se il permesso manca o l’app di destinazione non è disponibile, il contenuto rimane negli appunti per un incolla manuale.
 
 | Comando | Azione |
 | --- | --- |

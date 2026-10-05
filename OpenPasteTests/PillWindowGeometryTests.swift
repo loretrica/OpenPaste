@@ -11,7 +11,7 @@ struct PillWindowGeometryTests {
             for: WindowDimensions(width: 920, height: 280),
             in: visibleFrame)
 
-        #expect(frame == CGRect(x: 24, y: 18, width: 1392, height: 280))
+        #expect(frame == CGRect(x: 12, y: 12, width: 1416, height: 280))
     }
 
     @Test
@@ -22,10 +22,10 @@ struct PillWindowGeometryTests {
             for: WindowDimensions(width: 920, height: 420),
             in: visibleFrame)
 
-        #expect(frame.width == 552)
-        #expect(frame.height == 282)
-        #expect(frame.minX == visibleFrame.minX + 24)
-        #expect(frame.maxX == visibleFrame.maxX - 24)
+        #expect(frame.width == 576)
+        #expect(frame.height == 288)
+        #expect(frame.minX == visibleFrame.minX + 12)
+        #expect(frame.maxX == visibleFrame.maxX - 12)
         #expect(frame.maxY <= visibleFrame.maxY)
     }
 

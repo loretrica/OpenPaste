@@ -16,6 +16,8 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
         self?.holdInteraction(isControlling)
     }
     private var previousApplication: NSRunningApplication?
+    private var lastExternalApplication: NSRunningApplication?
+    private var applicationActivationObserver: NSObjectProtocol?
     private var interactionHoldCount = 0
     private var isDismissing = false
     private var isRepositioning = false
@@ -57,6 +59,17 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
             backing: .buffered,
             defer: false)
         super.init(window: panel)
+
+        applicationActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: NSWorkspace.shared,
+            queue: .main
+        ) { [weak self] notification in
+            guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+            Task { @MainActor [weak self] in
+                self?.rememberExternalApplication(application)
+            }
+        }
 
         panel.isFloatingPanel = true
         panel.becomesKeyOnlyIfNeeded = false
@@ -127,7 +140,12 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
             return
         }
 
-        previousApplication = NSWorkspace.shared.frontmostApplication
+        if let frontmostApplication = NSWorkspace.shared.frontmostApplication {
+            rememberExternalApplication(frontmostApplication)
+        }
+        if previousApplication == nil || previousApplication?.isTerminated == true {
+            previousApplication = lastExternalApplication
+        }
         let screen = PillWindowScreenLocator.activeScreen()
         let visibleFrame = screen?.visibleFrame
             ?? NSScreen.main?.visibleFrame
@@ -155,6 +173,16 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
             context.timingFunction = CAMediaTimingFunction(name: .easeOut)
             panel.animator().setFrame(targetFrame, display: true)
             panel.animator().alphaValue = 1
+        }
+    }
+
+    private func rememberExternalApplication(_ application: NSRunningApplication) {
+        guard application.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+              !application.isTerminated
+        else { return }
+        lastExternalApplication = application
+        if isPillVisible {
+            previousApplication = application
         }
     }
 

@@ -14,7 +14,7 @@ final class PillWindowState {
 
 enum PillWindowGeometry {
     static let compactHeightThreshold: CGFloat = 320
-    static let horizontalMargin: CGFloat = 24
+    static let horizontalMargin: CGFloat = 12
     static let maximumCompactCardSide: CGFloat = 220
     static let maximumFullCardSide: CGFloat = 320
 
@@ -26,7 +26,7 @@ enum PillWindowGeometry {
     static func frame(
         for dimensions: WindowDimensions,
         in visibleFrame: CGRect,
-        bottomInset: CGFloat = 18
+        bottomInset: CGFloat = 12
     ) -> CGRect {
         let safeWidth = max(1, visibleFrame.width - horizontalMargin * 2)
         let safeHeight = max(1, visibleFrame.height - bottomInset)

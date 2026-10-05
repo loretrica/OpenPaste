@@ -70,9 +70,9 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, minHeight: 180)
         .background(
             .regularMaterial,
-            in: RoundedRectangle(cornerRadius: pillState.isCompact ? 72 : 40, style: .continuous))
+            in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: pillState.isCompact ? 72 : 40, style: .continuous)
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(.white.opacity(0.16), lineWidth: 1)
         }
         .overlay(alignment: .bottom) {

@@ -309,8 +309,8 @@ struct ClipboardHistoryItems: View {
                                         onPayload: onImport))
                                     .overlay {
                                         if targetedCardID == item.id {
-                                            RoundedRectangle(cornerRadius: 19, style: .continuous)
-                                                .strokeBorder(Color.accentColor, lineWidth: 4)
+                                            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                                .strokeBorder(Color.accentColor, lineWidth: 2)
                                                 .padding(-2)
                                                 .allowsHitTesting(false)
                                         }
@@ -527,13 +527,13 @@ struct ClipboardItemCard: View {
             .padding(.horizontal, 14)
             .padding(.bottom, 12)
         }
-        .background(item.kind == .color ? Color(hex: item.colorHex ?? item.content) : Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: 19, style: .continuous))
+        .background(item.kind == .color ? Color(hex: item.colorHex ?? item.content) : Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 19, style: .continuous)
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(
                     isActive ? Color.blue : (isSelected ? Color.purple : Color.white.opacity(0.12)),
-                    style: StrokeStyle(lineWidth: isActive ? 3 : (isSelected ? 2 : 1), dash: isSelected && !isActive ? [5, 3] : []))
+                    style: StrokeStyle(lineWidth: isActive ? 2 : (isSelected ? 1.5 : 1), dash: isSelected && !isActive ? [5, 3] : []))
         }
         .shadow(color: isActive ? Color.blue.opacity(0.2) : .black.opacity(0.08), radius: isActive ? 8 : 3, y: 2)
         .contextMenu {
