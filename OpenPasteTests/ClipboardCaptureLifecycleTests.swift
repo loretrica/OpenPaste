@@ -26,6 +26,23 @@ struct ClipboardCaptureLifecycleTests {
     }
 
     @Test
+    func monitorSuppressesOnlyTheInternalPasteboardChangeCount() async throws {
+        let pasteboard = FakeClipboardPasteboard()
+        let monitor = ClipboardMonitor(pasteboard: pasteboard, pollingInterval: .milliseconds(5))
+        let captured = ClipboardCaptureProbe()
+        monitor.start { payload, _ in captured.values.append(payload.content) }
+
+        pasteboard.write("OpenPaste payload")
+        monitor.suppress(changeCount: pasteboard.currentChangeCount)
+        try await Task.sleep(for: .milliseconds(30))
+        pasteboard.write("External copy")
+        try await Task.sleep(for: .milliseconds(30))
+
+        #expect(captured.values == ["External copy"])
+        monitor.stop()
+    }
+
+    @Test
     func capturePauseDiscardsCopiesUntilResumeAndThenCapturesNewWrites() async throws {
         let pasteboard = FakeClipboardPasteboard()
         let monitor = ClipboardMonitor(pasteboard: pasteboard, pollingInterval: .milliseconds(5))
@@ -95,6 +112,11 @@ struct ClipboardCaptureLifecycleTests {
 }
 
 @MainActor
+private final class ClipboardCaptureProbe {
+    var values: [String] = []
+}
+
+@MainActor
 private final class WeakClipboardMonitorReference {
     weak var monitor: ClipboardMonitor?
 
@@ -111,11 +133,12 @@ private final class FakeClipboardPasteboard: ClipboardPasteboardReading {
         pollCount += 1
         return generation
     }
+    var currentChangeCount: Int { generation }
     private(set) var content: String?
     var sourceApplicationBundleIdentifier: String? = "com.example.source"
 
-    func stringContents() -> String? {
-        content
+    func payloadContents() -> ClipboardPayload? {
+        content.map(ClipboardPayload.text)
     }
 
     func write(_ content: String) {

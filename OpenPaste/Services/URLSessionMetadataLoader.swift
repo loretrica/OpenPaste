@@ -11,7 +11,7 @@ actor URLSessionMetadataLoader: LinkMetadataLoading {
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.timeoutIntervalForRequest = 8
         configuration.timeoutIntervalForResource = 12
-        session = URLSession(configuration: configuration)
+        session = URLSession(configuration: configuration, delegate: MetadataSessionDelegate(), delegateQueue: nil)
     }
 
     func metadata(for url: URL) async throws -> ClipboardLinkMetadata? {
@@ -37,6 +37,6 @@ actor URLSessionMetadataLoader: LinkMetadataLoading {
         }
 
         guard let html = String(data: data, encoding: .utf8) else { return nil }
-        return HTMLMetadataParser.parse(html)
+        return HTMLMetadataParser.parse(html, baseURL: response.url)
     }
 }

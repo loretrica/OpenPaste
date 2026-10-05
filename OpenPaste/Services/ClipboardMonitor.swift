@@ -2,24 +2,12 @@ import AppKit
 import Foundation
 
 @MainActor
-private final class AppKitClipboardPasteboardReader: ClipboardPasteboardReading {
-    var changeCount: Int { NSPasteboard.general.changeCount }
-
-    func stringContents() -> String? {
-        NSPasteboard.general.string(forType: .string)
-    }
-
-    var sourceApplicationBundleIdentifier: String? {
-        NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-    }
-}
-
-@MainActor
 final class ClipboardMonitor {
     private let pasteboard: any ClipboardPasteboardReading
     private let pollingInterval: Duration
     private var pollingTask: Task<Void, Never>?
     private var lastChangeCount: Int?
+    private var suppressedChangeCounts = Set<Int>()
 
     init(
         pasteboard: any ClipboardPasteboardReading = AppKitClipboardPasteboardReader(),
@@ -33,7 +21,15 @@ final class ClipboardMonitor {
         pollingTask?.cancel()
     }
 
-    func start(onCopy: @escaping @MainActor (String, String?) -> Void) {
+    func suppress(changeCount: Int) {
+        suppressedChangeCounts.insert(changeCount)
+        if suppressedChangeCounts.count > 128 {
+            suppressedChangeCounts.removeAll(keepingCapacity: true)
+            suppressedChangeCounts.insert(changeCount)
+        }
+    }
+
+    func start(onCopy: @escaping @MainActor (ClipboardPayload, String?) -> Void) {
         guard pollingTask == nil else { return }
         lastChangeCount = pasteboard.changeCount
         let pollingInterval = self.pollingInterval
@@ -50,19 +46,19 @@ final class ClipboardMonitor {
         pollingTask?.cancel()
         pollingTask = nil
         lastChangeCount = nil
+        suppressedChangeCounts.removeAll()
     }
 
-    private func checkPasteboard(onCopy: @MainActor (String, String?) -> Void) {
+    private func checkPasteboard(onCopy: @MainActor (ClipboardPayload, String?) -> Void) {
         let changeCount = pasteboard.changeCount
         guard changeCount != lastChangeCount else { return }
         lastChangeCount = changeCount
 
-        guard let content = ClipboardTextNormalizer.acceptedContent(pasteboard.stringContents()) else {
-            return
-        }
+        if suppressedChangeCounts.remove(changeCount) != nil { return }
+        guard let payload = pasteboard.payloadContents() else { return }
 
         let sourceBundleID = pasteboard.sourceApplicationBundleIdentifier
         guard sourceBundleID != Bundle.main.bundleIdentifier else { return }
-        onCopy(content, sourceBundleID)
+        onCopy(payload, sourceBundleID)
     }
 }

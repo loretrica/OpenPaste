@@ -1,12 +1,22 @@
 import AppKit
+import QuickLookUI
 import SwiftUI
 
 @MainActor
 final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
     private let clipboardStore: (any ClipboardStore)?
     private let preferencesStore: any PreferencesStore
+    private let onPause: (CapturePauseDuration) -> Void
+    private let onResume: () -> Void
+    private let onPasteboardWrite: (Int) -> Void
+    private let pasteService: ClipboardPasteService
+    private let actionStatus = ClipboardActionStatus()
     private let pillState = PillWindowState()
-    private weak var previousApplication: NSRunningApplication?
+    private lazy var previewController = ClipboardQuickLookController { [weak self] isControlling in
+        self?.holdInteraction(isControlling)
+    }
+    private var previousApplication: NSRunningApplication?
+    private var interactionHoldCount = 0
     private var isDismissing = false
     private var isRepositioning = false
     private var localClickMonitor: Any?
@@ -15,10 +25,28 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
     init(
         clipboardStore: (any ClipboardStore)?,
         preferencesStore: any PreferencesStore,
-        startupError: String? = nil
+        startupError: String? = nil,
+        onPause: @escaping (CapturePauseDuration) -> Void = { _ in },
+        onResume: @escaping () -> Void = {},
+        onPasteboardWrite: @escaping (Int) -> Void = { _ in }
     ) {
         self.clipboardStore = clipboardStore
         self.preferencesStore = preferencesStore
+        self.onPause = onPause
+        self.onResume = onResume
+        self.onPasteboardWrite = onPasteboardWrite
+        #if DEBUG
+        let pasteboard: NSPasteboard
+        if ClipboardDemoData.isEnabled {
+            pasteboard = NSPasteboard(name: NSPasteboard.Name(
+                "it.lore-trica.openpaste.ui-tests.\(UUID().uuidString)"))
+        } else {
+            pasteboard = .general
+        }
+        #else
+        let pasteboard = NSPasteboard.general
+        #endif
+        self.pasteService = ClipboardPasteService(pasteboard: pasteboard)
 
         let initialFrame = PillWindowGeometry.frame(
             for: preferencesStore.preferences.windowDimensions,
@@ -45,12 +73,35 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
             width: initialFrame.width,
             height: max(initialFrame.height, NSScreen.main?.visibleFrame.height ?? initialFrame.height))
         panel.delegate = self
+        let actions = ClipboardUIActions(
+            paste: { [weak self] item, plainText in
+                guard let self else { return }
+                Task { @MainActor in await self.paste(item, plainText: plainText) }
+            },
+            copy: { [weak self] item in
+                guard let self else { return }
+                Task { @MainActor in await self.copy(item) }
+            },
+            preview: { [weak self] item in
+                guard let self else { return }
+                Task { @MainActor in await self.previewController.preview(item, using: self.clipboardStore) }
+            },
+            open: { [weak self] item in
+                self?.open(item)
+            },
+            holdInteraction: { [weak self] isHeld in
+                self?.holdInteraction(isHeld)
+            },
+            pause: { [weak self] duration in self?.onPause(duration) },
+            resume: { [weak self] in self?.onResume() },
+            status: actionStatus)
         panel.contentView = NSHostingView(
             rootView: ContentView(
                 store: clipboardStore,
                 startupError: startupError,
                 preferencesStore: preferencesStore,
                 pillState: pillState,
+                actions: actions,
                 onDismiss: { [weak self] in self?.dismiss(restoreFocus: true) }))
         pillState.update(forHeight: initialFrame.height)
     }
@@ -107,8 +158,82 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    func dismiss(restoreFocus: Bool) {
+    private func holdInteraction(_ isHeld: Bool) {
+        if isHeld {
+            interactionHoldCount += 1
+            return
+        }
+
+        interactionHoldCount = max(0, interactionHoldCount - 1)
+    }
+
+    private func copy(_ item: ClipboardItem) async {
+        guard !actionStatus.isBusy else { return }
+        actionStatus.isBusy = true
+        holdInteraction(true)
+        defer {
+            actionStatus.isBusy = false
+            holdInteraction(false)
+        }
+
+        await pasteService.copy(
+            item,
+            using: clipboardStore,
+            onWrite: onPasteboardWrite)
+        actionStatus.message = "Copiato"
+    }
+
+    private func paste(_ item: ClipboardItem, plainText: Bool) async {
+        guard !actionStatus.isBusy else { return }
+        actionStatus.isBusy = true
+        holdInteraction(true)
+        defer {
+            actionStatus.isBusy = false
+            holdInteraction(false)
+        }
+
+        let result = await pasteService.paste(
+            item,
+            using: clipboardStore,
+            to: previousApplication,
+            plainText: plainText,
+            onWrite: onPasteboardWrite,
+            onDismiss: { [weak self] in self?.dismiss(restoreFocus: false, force: true) })
+        switch result {
+        case .pasted:
+            actionStatus.message = "Incollato"
+        case .manualPasteRequired:
+            actionStatus.message = "Copiato. Premi ⌘V nell’app di destinazione."
+        }
+    }
+
+    private func preview(_ item: ClipboardItem) async {
+        await previewController.preview(item, using: clipboardStore)
+    }
+
+    private func open(_ item: ClipboardItem) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let payload: ClipboardPayload
+            if let store = clipboardStore, let restored = try? await store.payload(for: item) {
+                payload = restored
+            } else {
+                payload = ClipboardPayload.restoring(item)
+            }
+
+            if let file = payload.files.first,
+               let url = file.resolvedURL() {
+                NSWorkspace.shared.open(url)
+            } else if let url = URL(string: payload.content),
+                      url.scheme != nil {
+                NSWorkspace.shared.open(url)
+            }
+        }
+    }
+
+    func dismiss(restoreFocus: Bool, force: Bool = false) {
         guard let panel = window, panel.isVisible, !isDismissing else { return }
+        guard force || interactionHoldCount == 0 else { return }
         isDismissing = true
         removeClickMonitors()
         panel.orderOut(nil)
@@ -119,7 +244,7 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        guard !isDismissing else { return }
+        guard !isDismissing, interactionHoldCount == 0 else { return }
         dismiss(restoreFocus: false)
     }
 
@@ -162,6 +287,13 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
+    private func isInsidePreviewPanel(_ point: NSPoint) -> Bool {
+        guard let previewPanel = QLPreviewPanel.shared(),
+              previewPanel.isVisible
+        else { return false }
+        return previewPanel.frame.contains(point)
+    }
+
     private func installClickMonitors() {
         guard localClickMonitor == nil, globalClickMonitor == nil else { return }
         let mouseDownEvents: NSEvent.EventTypeMask = [
@@ -171,8 +303,13 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
         ]
 
         localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: mouseDownEvents) { [weak self] event in
-            guard let self, self.isPillVisible, let panel = self.window else { return event }
-            if !panel.frame.contains(NSEvent.mouseLocation) {
+            guard let self,
+                  self.isPillVisible,
+                  let panel = self.window
+            else { return event }
+            let clickLocation = NSEvent.mouseLocation
+            if !panel.frame.contains(clickLocation), !self.isInsidePreviewPanel(clickLocation) {
+                guard self.interactionHoldCount == 0 else { return event }
                 self.dismiss(restoreFocus: false)
             }
             return event
@@ -184,10 +321,12 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
                 guard let self,
                       self.isPillVisible,
                       let panel = self.window,
-                      !panel.frame.contains(clickLocation)
+                      !panel.frame.contains(clickLocation),
+                      !self.isInsidePreviewPanel(clickLocation)
                 else {
                     return
                 }
+                guard self.interactionHoldCount == 0 else { return }
                 self.dismiss(restoreFocus: false)
             }
         }

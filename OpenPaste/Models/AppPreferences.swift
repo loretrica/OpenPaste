@@ -4,7 +4,7 @@ struct WindowDimensions: Codable, Equatable, Sendable {
     var width: Double
     var height: Double
 
-    static let `default`: WindowDimensions = .init(width: 920, height: 280)
+    static let `default`: WindowDimensions = .init(width: 920, height: 360)
 
     func clamped(to size: CGSize) -> WindowDimensions {
         let maxWidth = max(1, size.width)

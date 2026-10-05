@@ -1,11 +1,31 @@
 import Foundation
 
 enum HTMLMetadataParser {
-    static func parse(_ html: String) -> ClipboardLinkMetadata? {
-        let title = title(in: html)
+    static func parse(_ html: String, baseURL: URL? = nil) -> ClipboardLinkMetadata? {
+        let title = metaValue("og:title", in: html).flatMap(normalizedText) ?? title(in: html)
         let description = description(in: html)
-        guard title != nil || description != nil else { return nil }
-        return ClipboardLinkMetadata(title: title, description: description)
+        let rawImage = metaValue("og:image", in: html) ?? metaValue("twitter:image", in: html)
+        let imageURL = rawImage.flatMap { value -> String? in
+            let decoded = value.replacingOccurrences(of: "&amp;", with: "&")
+            guard let url = URL(string: decoded, relativeTo: baseURL)?.absoluteURL,
+                  MetadataURLPolicy.allows(url) else { return nil }
+            return url.absoluteString
+        }
+        guard title != nil || description != nil || imageURL != nil else { return nil }
+        return ClipboardLinkMetadata(title: title, description: description, imageURL: imageURL)
+    }
+
+    private static func metaValue(_ key: String, in html: String) -> String? {
+        guard let regex = try? NSRegularExpression(pattern: "(?is)<meta\\b[^>]*>") else { return nil }
+        for match in regex.matches(in: html, range: NSRange(html.startIndex..., in: html)) {
+            guard let range = Range(match.range, in: html) else { continue }
+            let values = attributes(in: String(html[range]))
+            let name = (values["property"] ?? values["name"] ?? "").lowercased()
+            if name == key, let content = values["content"], !content.isEmpty {
+                return content
+            }
+        }
+        return nil
     }
 
     private static func title(in html: String) -> String? {

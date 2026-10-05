@@ -61,6 +61,7 @@ struct ClipboardHistoryViewModelTests {
 
         model.searchText = "Alpha"
         model.updateSearch(model.searchText)
+        model.showSearchResults()
         try await waitUntil { model.searchResults.count == 1 }
         #expect(model.displayedItems.first?.content == "Alpha content")
 

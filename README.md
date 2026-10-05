@@ -4,68 +4,100 @@
 
 ## Stato
 
-OpenPaste acquisisce automaticamente testo e link copiati mentre l’app è in esecuzione, anche se la mega pill è chiusa, e li salva nel database locale. La pillola flottante si apre all’avvio o con ⇧⌘V, compare dal basso sul display attivo, occupa quasi tutta la larghezza con margini laterali e si chiude con Escape o clic esterno. All’apertura la pillola riceve il focus della tastiera; Escape ripristina il focus dell’app precedente. La cronologia scorre orizzontalmente in card quadrate; aumentando l’altezza della pillola crescono le card e mostrano più righe di anteprima. Riducendone l’altezza passa automaticamente alla vista compatta.
+OpenPaste conserva gli appunti localmente mentre l’app è in esecuzione, anche quando la pillola è chiusa. La pillola flottante si apre all’avvio o con ⇧⌘V, compare dal basso sul display attivo e occupa la larghezza disponibile con margini laterali. Riceve il focus della tastiera e ripristina l’app precedente alla chiusura con Escape.
 
-## Funzioni disponibili
+La barra contiene ricerca, cronologia, raccolte colorate, aggiunta di una raccolta e menu. Le raccolte scorrono orizzontalmente e si possono riordinare. Le card sono quadrate, con intestazione colorata, icona dell’app sorgente e anteprima del contenuto. L’elemento attivo ha un bordo blu; gli altri elementi selezionati hanno un’indicazione distinta. Sono supportati aspetto chiaro e scuro e vista compatta automatica sotto i 320 pt. L’altezza iniziale è 360 pt; le dimensioni già salvate restano rispettate.
 
-- Database SQLite locale tramite GRDB 7, con migrazioni versionate e indice full-text FTS5.
-- Supporto dati per testo e link HTTP/HTTPS, con deduplicazione del testo esatto e degli URL normalizzati.
-- Le copie successive dello stesso contenuto aggiornano data, sorgente e posizione nella cronologia.
-- Ricerca reattiva di contenuto, titolo e descrizione dei link.
-- Conservazione configurabile: 1 giorno, 1 settimana, 1 mese, 1 anno o per sempre. Il valore iniziale è 1 mese.
-- API per osservare e gestire raccolte, assegnarvi un elemento, rimuoverlo dalla cronologia e cancellarlo definitivamente.
-- Recupero asincrono di titolo e descrizione per i link; le ricopie dello stesso link condividono la richiesta già in corso. Se il recupero fallisce, l’URL resta salvato.
-- Provenienza dell’ultima copia tramite bundle ID dell’app sorgente.
-- Scorciatoia globale iniziale ⇧⌘V e comando di pausa nel menu di stato (15 minuti, 1 ora o fino alla ripresa manuale).
-- Preferenze locali per retention, dimensioni della pillola e scorciatoia; le dimensioni vengono ripristinate alla prossima apertura.
-- Vista compatta automatica sotto i 320 pt di altezza.
+## Contenuti
 
-La retention viene registrata per ogni copia: cambiare la durata influisce sulle copie successive e non rimuove quelle già presenti. Gli elementi scaduti vengono tolti dalla cronologia all’avvio e ogni 24 ore mentre l’app è in esecuzione; se appartengono a una raccolta, restano conservati lì.
+- Testo semplice e formattato: vengono conservate le rappresentazioni originali RTF/HTML, quando disponibili.
+- Link HTTP/HTTPS: URL, titolo, descrizione e immagine di anteprima, quando il sito li fornisce. L’URL resta utilizzabile se il recupero non riesce.
+- Immagini: rappresentazioni originali, anteprima e dimensioni.
+- File e PDF: riferimenti agli originali con bookmark, anche per gruppi di file. OpenPaste non archivia una copia dei file; se l’originale viene rimosso, il riferimento non può ripristinarlo.
+- Codice: rilevamento automatico prudente e scelta manuale di tipo e linguaggio. Linguaggi disponibili: Swift, JavaScript, TypeScript, Python, JSON, SQL, Shell, HTML e CSS.
+- Colori HEX: campione del colore e valore normalizzato.
 
-Il monitor controlla gli aggiornamenti della clipboard ogni 250 ms mentre l’app è in esecuzione; legge il testo e ignora i contenuti vuoti. Per metadati dei link rifiuta gli host locali e gli indirizzi privati noti. Immagini, file, sincronizzazione, collaborazione e filtri per app sorgente non sono inclusi.
+Testo e URL hanno chiavi di deduplicazione stabili. Le ricopie aggiornano data e sorgente e riportano l’elemento all’inizio della cronologia; conservano titolo personalizzato, classificazione manuale e posizione nella raccolta.
+
+## Uso e tastiera
+
+Un clic seleziona una card. Un doppio clic o Invio copia l’elemento attivo, chiude la pillola e lo incolla nell’app precedente. Per l’incolla automatico macOS può richiedere il permesso di inviare eventi: la richiesta avviene alla prima azione, mai all’avvio. Se il permesso manca o l’app di destinazione non è disponibile, il contenuto rimane negli appunti per un incolla manuale.
+
+| Comando | Azione |
+| --- | --- |
+| ⇧⌘V | Apri o chiudi la pillola |
+| ← / → | Card precedente o successiva |
+| ⌘↑ / ⌘↓ | Prima o ultima card |
+| Invio | Incolla la sola card attiva nell’app precedente |
+| ⇧Invio | Incolla come testo semplice |
+| ⌘C | Copia la sola card attiva e mantiene aperta la pillola |
+| ⌘1…⌘9 | Incolla la card nella posizione corrispondente |
+| Spazio | Anteprima; Quick Look per immagini e file |
+| ⌘F | Ricerca e filtri |
+| Tab | Passa fra campo di ricerca e risultati |
+| ⇧← / ⇧→, ⇧clic | Seleziona un intervallo |
+| ⌘clic | Aggiungi o rimuovi una card dalla selezione |
+| ⌘A | Seleziona tutti gli elementi della vista corrente |
+| ⌘R | Rinomina l’elemento attivo |
+| ⌘E | Modifica testo o codice |
+| ⌘N | Crea un testo nella raccolta corrente o in cronologia |
+| ⇧⌘N | Crea una raccolta |
+| Cancella | Rimuovi dalla vista corrente |
+| Escape | Chiudi prima anteprima/editor, poi ricerca, poi pillola |
+
+La selezione multipla serve per spostare, trascinare o rimuovere più elementi; copia e incolla agiscono sull’elemento attivo. L’editor mantiene la formattazione del testo. Il menu della card permette anche di modificare il tipo e il linguaggio del codice.
+
+Digitare avvia la ricerca globale, che include anche gli elementi conservati solo nelle raccolte. Sono disponibili filtri per tipo, app sorgente e intervallo di date. Invio nel campo passa ai risultati; un secondo Invio incolla la card attiva. Cambiare raccolta azzera ricerca e filtri. La cronologia e i risultati vengono caricati progressivamente.
+
+## Raccolte e trascinamento
+
+Ogni card può appartenere a una sola raccolta e restare anche nella cronologia. Le raccolte hanno nome e colore modificabili e un ordine manuale; anche le card di una raccolta si possono riordinare. I nuovi elementi vengono aggiunti in fondo alla raccolta.
+
+Trascina card sulle raccolte per assegnarle, fra card della stessa raccolta per riordinarle, oppure verso un’altra app per esportare il contenuto nei formati originali. È possibile trascinare contenuti da altre app nella cronologia o in una raccolta. Le operazioni di trascinamento, anteprima, modifica e conferma mantengono aperta la pillola durante l’interazione.
+
+Rimuovere una card dalla raccolta o eliminare la raccolta mantiene le card in cronologia. Se un elemento era già scaduto o assente dalla cronologia, viene rinnovata la sua scadenza senza cambiare la data della copia originale. Cancella nella cronologia rimuove dalla cronologia, preservando gli elementi appartenenti a una raccolta. L’eliminazione definitiva richiede conferma e rimuove anche i dati associati.
+
+## Conservazione
+
+La durata è configurabile: 1 giorno, 1 settimana, 1 mese, 1 anno o per sempre. Il valore iniziale è 1 mese. La durata viene registrata per ogni copia: cambiarla influisce sulle copie successive. Gli elementi scaduti vengono tolti dalla cronologia all’avvio e ogni 24 ore; se appartengono a una raccolta, restano conservati lì.
+
+Il monitor controlla la clipboard ogni 250 ms. Le scritture effettuate da OpenPaste vengono ignorate usando il loro specifico contatore di modifica, senza scartare la successiva copia esterna. L’acquisizione si può sospendere dal menu per 15 minuti, 1 ora o fino alla ripresa manuale. Pausa e arresto non annullano i salvataggi già acquisiti.
 
 ## Dati e privacy
 
-Il database si trova in ~/Library/Application Support/OpenPaste/OpenPaste.sqlite. I contenuti vengono conservati localmente e non inviati a server OpenPaste. Per recuperare i metadati, l’app effettua una richiesta HTTP/HTTPS al sito del link copiato. Le richieste non usano cookie o cache condivisi.
+Il database SQLite si trova in `~/Library/Application Support/OpenPaste/OpenPaste.sqlite`. GRDB 7 gestisce migrazioni versionate e ricerca full-text FTS5. La migrazione per i nuovi tipi preserva gli identificativi, le chiavi di deduplicazione, le raccolte e l’indice di ricerca; non serve un reset del database.
+
+Le rappresentazioni originali sono salvate separatamente in `~/Library/Application Support/OpenPaste/Assets`, come payload JSON con dati binari codificati. Le immagini delle anteprime dei link sono nella cache locale `~/Library/Caches/OpenPaste/LinkPreviews`. Le letture della lista non caricano i payload binari; vengono recuperati quando servono per anteprima, modifica, copia o trascinamento.
+
+I contenuti non vengono inviati a server OpenPaste. Il recupero dei metadati e delle immagini dei link effettua richieste al sito del link copiato, senza cookie o cache condivisi. Le richieste e i redirect rifiutano URL non HTTP/HTTPS, host locali e indirizzi privati noti; il download delle immagini ha un limite di 5 MB.
+
+Sincronizzazione, collaborazione, OCR, Paste Stack e funzioni AI non sono inclusi.
 
 L’App Sandbox è disattivata nel target, in linea con la distribuzione diretta prevista. Hardened Runtime è attivo; firma Developer ID e notarizzazione restano da configurare prima di distribuire una release.
 
-## Requisiti
+## Requisiti e avvio
 
 - macOS 27 o successivo, secondo il deployment target Xcode attuale.
-- Xcode 27 o successivo con SDK macOS 27 e compilatore Swift 6. Il progetto usa controllo completo della concorrenza e isolamento esplicito sul main actor per AppKit e lo stato dell’interfaccia.
+- Xcode 27 o successivo con SDK macOS 27 e compilatore Swift 6.
 - Dipendenza Swift Package Manager: [GRDB.swift](https://github.com/groue/GRDB.swift), prodotto GRDB.
 
-## Avvio
+1. Apri `OpenPaste.xcodeproj` con Xcode.
+2. Seleziona lo schema `OpenPaste` e la destinazione My Mac.
+3. Premi Run (▶).
 
-1. Apri OpenPaste.xcodeproj con Xcode.
-2. Seleziona lo schema OpenPaste.
-3. Scegli My Mac come destinazione.
-4. Premi Run (▶).
+Il progetto usa controllo completo della concorrenza e isolamento sul main actor per AppKit e lo stato dell’interfaccia. Per eseguire i test usa Product → Test (⌘U).
 
-Per eseguire i test, seleziona lo schema OpenPaste e usa Product → Test (⌘U).
-
-Il target OpenPasteTests verifica deduplicazione e stabilità delle chiavi persistenti, retention, raccolte, ricerca reattiva, concorrenza e ricerca su 100.000 elementi. Copre anche persistenza delle preferenze, scadenza delle pause, geometria della pillola, parsing dei metadati, policy degli URL e ciclo di vita delle osservazioni. OpenPasteUITests verifica avvio, ricerca, chiusura con Escape e riapertura con ⇧⌘V.
-
-## Documentazione
-
-- [Docs/PRODUCT_SPEC.md](Docs/PRODUCT_SPEC.md) — requisiti, direzione UX, stato attuale, priorità, criteri di accettazione e schermate di riferimento anonimizzate.
+Il target OpenPasteTests copre migrazioni, deduplicazione e stabilità delle chiavi, retention e raccolte, payload e formattazione, classificazione, ricerca e filtri, selezione, preferenze, metadati, geometria e ciclo di vita dei servizi. Include il caso di ricerca su 100.000 elementi. OpenPasteUITests verifica ricerca ed Escape, selezione e copia con ⌘C, menu contestuale, anteprima con Spazio e trascinamento nelle raccolte con dati dimostrativi isolati tramite `--ui-testing`: non apre il database personale, non avvia l’acquisizione e usa una clipboard privata. Il test `testLightAndDarkPillSnapshots` allega schermate della pillola nei due temi; `--appearance-light` e `--appearance-dark` forzano l’aspetto solo nella modalità dimostrativa DEBUG. Le anteprime “Pillola chiara” e “Pillola scura” in `ClipboardPanelPreview.swift` usano la stessa fixture isolata con tutti i tipi di card.
 
 ## Struttura essenziale
 
-- OpenPaste/Application/ — composizione delle dipendenze, avvio/arresto dei servizi e menu di stato.
-- OpenPaste/Database/ — apertura del database, migrazioni versionate, query condivise e repository.
-- OpenPaste/Models/ — dati, identità dei contenuti, retention e stato osservabile della cronologia.
-- OpenPaste/Preferences/ — persistenza e aggiornamenti delle preferenze.
-- OpenPaste/Services/ — monitor e acquisizione clipboard, scorciatoia globale, rete/parsing metadati e gestione della finestra.
-- OpenPaste/Views/ — toolbar, stati vuoti, carousel, card e azioni sugli elementi.
-- OpenPasteTests/ — test di dati, preferenze, servizi, geometria e stato della cronologia.
-- OpenPasteUITests/ — test dell’app in esecuzione.
-- OpenPaste.xcodeproj/ — progetto Xcode.
-
-Le query del database condividono gli stessi filtri e ordinamenti fra lettura e osservazione. Le migrazioni esistenti e le chiavi di deduplicazione sono conservate: il refactor non richiede reset del database.
-
-Le osservazioni della cronologia si possono arrestare e riavviare senza trattenere lo stato della vista; un cambio di raccolta o ricerca scarta gli aggiornamenti precedenti. Durante l’attesa di una nuova ricerca le card della ricerca precedente vengono svuotate, e una query di soli spazi mostra la cronologia o la raccolta selezionata. Pausa e arresto del monitor preservano i salvataggi delle copie già acquisiti.
+- `OpenPaste/Application/` — avvio, composizione delle dipendenze, menu di stato e fixture dimostrativa.
+- `OpenPaste/Database/` — migrazioni, query condivise e repository.
+- `OpenPaste/Models/` — dati, classificazione, preferenze e stato osservabile della cronologia.
+- `OpenPaste/Services/` — acquisizione, storage dei payload, incolla, trascinamento, Quick Look, rete e finestra.
+- `OpenPaste/Views/` — toolbar, selezione, carousel, card, editor e anteprime.
+- `OpenPasteTests/` e `OpenPasteUITests/` — test.
+- [Docs/PRODUCT_SPEC.md](Docs/PRODUCT_SPEC.md) — direzione UX e schermate di riferimento.
 
 ## Licenza
 

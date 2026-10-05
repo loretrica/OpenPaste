@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 enum ClipboardContent: Sendable, Equatable {
@@ -37,6 +38,30 @@ enum ClipboardContent: Sendable, Equatable {
             return .text(value)
         }
         return .link(rawURL: value, canonicalURL: canonicalURL)
+    }
+}
+
+extension ClipboardPayload {
+    var canonicalURL: String? {
+        guard kind == .link else { return nil }
+        return URLIdentity.canonicalize(content)
+    }
+
+    var deduplicationKey: String {
+        switch kind {
+        case .link:
+            return "link:\(canonicalURL ?? content)"
+        case .image:
+            let bytes = representations.map { Data($0.type.utf8) + $0.data }
+                .reduce(into: Data()) { $0.append($1) }
+            return "image:\(SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined())"
+        case .file:
+            let references = files.map { $0.url }.sorted().joined(separator: "\u{1f}")
+            return "file:\(SHA256.hash(data: Data(references.utf8)).map { String(format: "%02x", $0) }.joined())"
+        case .text, .code, .color:
+            // Legacy text keys deliberately remain stable across classification.
+            return "text:\(content)"
+        }
     }
 }
 

@@ -4,6 +4,10 @@ import GRDB
 enum ClipboardItemKind: String, CaseIterable, Codable, Sendable {
     case text
     case link
+    case image
+    case file
+    case code
+    case color
 }
 
 struct ClipboardItem: Codable, FetchableRecord, Identifiable, Sendable, Equatable {
@@ -20,12 +24,68 @@ struct ClipboardItem: Codable, FetchableRecord, Identifiable, Sendable, Equatabl
     var expiresAt: Date?
     var isInHistory: Bool
     var collectionID: Int64?
+    var customTitle: String? = nil
+    var assetPath: String? = nil
+    var codeLanguage: String? = nil
+    var colorHex: String? = nil
+    var imageWidth: Int? = nil
+    var imageHeight: Int? = nil
+    var collectionSortOrder: Int = 0
+    var linkImageURL: String? = nil
+    var isUserClassified: Bool = false
 }
 
 struct ClipboardCollection: Codable, FetchableRecord, Identifiable, Sendable, Equatable {
     var id: Int64?
     var name: String
     var createdAt: Date
+    var colorHex: String = "#FF3B30"
+    var sortOrder: Int = 0
+}
+
+enum ClipboardListScope: Sendable, Equatable {
+    case history
+    case collection(Int64)
+    case all
+}
+
+struct ClipboardFilter: Sendable, Equatable {
+    var kind: ClipboardItemKind? = nil
+    var sourceAppBundleID: String? = nil
+    var fromDate: Date? = nil
+    var toDate: Date? = nil
+
+    var isEmpty: Bool {
+        kind == nil && sourceAppBundleID == nil && fromDate == nil && toDate == nil
+    }
+
+    init(
+        kind: ClipboardItemKind? = nil,
+        sourceAppBundleID: String? = nil,
+        fromDate: Date? = nil,
+        toDate: Date? = nil
+    ) {
+        self.kind = kind
+        self.sourceAppBundleID = sourceAppBundleID
+        self.fromDate = fromDate
+        self.toDate = toDate
+    }
+}
+
+struct ClipboardQuery: Sendable, Equatable {
+    var scope: ClipboardListScope
+    var text: String
+    var filter: ClipboardFilter
+
+    init(
+        scope: ClipboardListScope = .history,
+        text: String = "",
+        filter: ClipboardFilter = .init()
+    ) {
+        self.scope = scope
+        self.text = text
+        self.filter = filter
+    }
 }
 
 enum ClipboardRetentionPolicy: String, CaseIterable, Codable, Sendable, Identifiable {
@@ -74,6 +134,7 @@ enum ClipboardRetentionPolicy: String, CaseIterable, Codable, Sendable, Identifi
 struct ClipboardLinkMetadata: Sendable, Equatable {
     var title: String?
     var description: String?
+    var imageURL: String? = nil
 }
 
 struct ClipboardPreferences {

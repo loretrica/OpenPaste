@@ -72,6 +72,10 @@ final class ClipboardCaptureService {
         startMonitoringIfNeeded()
     }
 
+    func ignorePasteboardChangeCount(_ changeCount: Int) {
+        monitor.suppress(changeCount: changeCount)
+    }
+
     func stop() {
         monitor.stop()
         pruningTask?.cancel()
@@ -106,7 +110,7 @@ final class ClipboardCaptureService {
             return
         }
 
-        monitor.start { [weak self] content, sourceBundleID in
+        monitor.start { [weak self] payload, sourceBundleID in
             guard let self,
                   let preferencesStore = self.preferencesStore,
                   !preferencesStore.preferences.capturePauseState.isPaused(),
@@ -118,7 +122,7 @@ final class ClipboardCaptureService {
             let copiedAt = Date.now
             let retentionPolicy = preferencesStore.preferences.retentionPolicy
             self.record(
-                content,
+                payload,
                 sourceBundleID: sourceBundleID,
                 copiedAt: copiedAt,
                 retentionPolicy: retentionPolicy,
@@ -127,7 +131,7 @@ final class ClipboardCaptureService {
     }
 
     private func record(
-        _ content: String,
+        _ payload: ClipboardPayload,
         sourceBundleID: String?,
         copiedAt: Date,
         retentionPolicy: ClipboardRetentionPolicy,
@@ -137,7 +141,7 @@ final class ClipboardCaptureService {
         recordTasks[taskID] = Task { [weak self, store] in
             do {
                 _ = try await store.recordCopy(
-                    content,
+                    payload,
                     sourceAppBundleID: sourceBundleID,
                     copiedAt: copiedAt,
                     retentionPolicy: retentionPolicy)

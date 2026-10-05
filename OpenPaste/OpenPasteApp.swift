@@ -16,14 +16,20 @@ struct OpenPasteApp {
 
 @MainActor
 private final class OpenPasteAppDelegate: NSObject, NSApplicationDelegate {
-    private let coordinator = ApplicationCoordinator()
+    private var coordinator: ApplicationCoordinator?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["XCODE_RUNNING_FOR_PREVIEWS"] != "1",
+              environment["XCTestConfigurationFilePath"] == nil,
+              NSClassFromString("XCTestCase") == nil else { return }
+        let coordinator = ApplicationCoordinator()
+        self.coordinator = coordinator
         coordinator.start()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        coordinator.stop()
+        coordinator?.stop()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
