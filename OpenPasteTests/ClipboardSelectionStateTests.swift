@@ -52,6 +52,32 @@ struct ClipboardSelectionStateTests {
         #expect(state.selectedItemIDs == [6])
     }
 
+    @Test
+    func activatingFirstVisibleItemSelectsTheMostRecentCopy() {
+        let state = ClipboardSelectionState()
+        state.setVisibleItems(makeItems([3, 2, 1]))
+        state.select(makeItems([2])[0])
+        state.select(makeItems([1])[0], modifiers: .command)
+
+        state.setVisibleItems(makeItems([4, 3, 2, 1]))
+        #expect(state.activeID == 1)
+
+        state.activateFirstVisibleItem()
+        #expect(state.activeID == 4)
+        #expect(state.selectedItemIDs == [4])
+    }
+
+    @Test
+    func activatingFirstVisibleItemWaitsForLoadedItems() {
+        let state = ClipboardSelectionState()
+        state.setVisibleItems([])
+        state.activateFirstVisibleItem()
+        #expect(state.activeID == nil)
+
+        state.setVisibleItems(makeItems([7, 5]))
+        #expect(state.activeID == 7)
+    }
+
     private func makeItems(_ ids: [Int64]) -> [ClipboardItem] {
         ids.map { id in
             ClipboardItem(

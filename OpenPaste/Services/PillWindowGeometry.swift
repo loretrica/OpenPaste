@@ -6,9 +6,14 @@ import Observation
 @Observable
 final class PillWindowState {
     var isCompact = false
+    private(set) var presentationCount = 0
 
     func update(forHeight height: CGFloat) {
         isCompact = PillWindowGeometry.isCompact(height: height)
+    }
+
+    func didPresent() {
+        presentationCount += 1
     }
 }
 

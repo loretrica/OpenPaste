@@ -95,6 +95,7 @@ struct ContentView: View {
                 .frame(width: 0, height: 0)
         }
         .onChange(of: model.displayedItems) { _, items in selection.setVisibleItems(items) }
+        .onChange(of: pillState.presentationCount) { _, _ in selection.activateFirstVisibleItem() }
         .onChange(of: model.searchFilter) { _, _ in model.updateSearch(model.searchText) }
         .onChange(of: searchPanel) { _, mode in
             if mode == .results { isSearchFocused = false; model.showSearchResults() }

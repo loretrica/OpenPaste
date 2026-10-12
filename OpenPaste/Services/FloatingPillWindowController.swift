@@ -165,6 +165,7 @@ final class FloatingPillWindowController: NSWindowController, NSWindowDelegate {
 
         panel.setFrame(targetFrame.offsetBy(dx: 0, dy: -28), display: false)
         panel.alphaValue = 0
+        pillState.didPresent()
         NSApp.activate()
         panel.makeKeyAndOrderFront(nil)
         installClickMonitors()

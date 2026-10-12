@@ -71,6 +71,12 @@ final class ClipboardSelectionState {
         if anchorID == nil { anchorID = activeID }
     }
 
+    /// Resets the selection to the most recent visible item, or waits for the next visible items.
+    func activateFirstVisibleItem() {
+        clear()
+        moveActive(toFirst: true)
+    }
+
     func clear() {
         activeID = nil
         selectedIDs.removeAll()
